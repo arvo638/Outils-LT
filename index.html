@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16324A">
+<title>Outils de maintenance LT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#EEF1F3; --surface:#FFFFFF; --surface-2:#F6F8FA;
+    --ink:#14181C; --ink-2:#5A646E; --line:#D6DDE3;
+    --steel:#16324A; --steel-2:#244A66;
+    --green:#137A43; --green-bg:#E4F3EB;
+    --red:#C1271B; --red-bg:#FBE7E4;
+    --hivis:#F2A100; --hivis-ink:#3A2A00;
+    --radius:14px; --tap:52px;
+    --shadow:0 1px 0 rgba(20,24,28,.04), 0 6px 18px rgba(20,24,28,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg); color:var(--ink); font-family:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; font-size:16px; line-height:1.45; -webkit-text-size-adjust:100%; padding-bottom:env(safe-area-inset-bottom)}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace}
+
+  header{background:var(--steel); color:#fff; padding:calc(env(safe-area-inset-top) + 14px) 18px 0; position:sticky; top:0; z-index:20}
+  .brandrow{display:flex; align-items:center; gap:12px; min-height:44px}
+  .back{appearance:none; background:rgba(255,255,255,.12); color:#fff; border:0; width:40px; height:40px; border-radius:10px; font-size:20px; cursor:pointer; display:none; align-items:center; justify-content:center; flex:0 0 auto}
+  .back.show{display:flex}
+  .brand{font-family:"Barlow Condensed",sans-serif; font-weight:700; letter-spacing:.08em; text-transform:uppercase; font-size:17px; line-height:1.05}
+  .brand small{display:block; font-family:"Barlow",sans-serif; font-weight:500; letter-spacing:.02em; text-transform:none; font-size:12px; color:#9FB6C9; margin-top:3px}
+  .rail{height:14px; margin-top:12px; position:relative}
+  .rail::before, .rail::after{content:""; position:absolute; left:0; right:0; height:2px; background:#34526B}
+  .rail::before{top:3px} .rail::after{top:9px}
+  .rail .ties{position:absolute; inset:0; background-image:repeating-linear-gradient(90deg,#34526B 0 2px,transparent 2px 16px)}
+
+  main{max-width:760px; margin:0 auto; padding:18px 16px 40px}
+
+  .eyebrow{font-family:"Barlow Condensed",sans-serif; font-weight:700; letter-spacing:.18em; text-transform:uppercase; font-size:13px; color:var(--ink-2); margin:6px 2px 14px}
+  .tiles{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  @media(max-width:430px){.tiles{grid-template-columns:1fr}}
+  .tile{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px; text-align:left; cursor:pointer; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:10px; min-height:120px; transition:transform .12s ease, border-color .12s}
+  .tile:active{transform:scale(.985)}
+  .tile:hover{border-color:#B9C5CE}
+  .tile .ic{width:42px; height:42px; border-radius:11px; background:var(--steel); color:#fff; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700}
+  .tile h3{margin:0; font-size:18px; font-weight:700}
+  .tile p{margin:0; color:var(--ink-2); font-size:13.5px}
+  .tile.soon{opacity:.62; cursor:not-allowed}
+  .tile.soon .ic{background:#9AA7B1}
+  .badge{align-self:flex-start; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:3px 8px; border-radius:999px; background:var(--hivis); color:var(--hivis-ink)}
+  .badge.muted{background:#E1E7EC; color:var(--ink-2)}
+
+  .view{display:none}
+  .view.active{display:block}
+  .apptitle{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:2px 2px 14px}
+  .apptitle h2{margin:0; font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:26px; letter-spacing:.01em}
+  .count{font-weight:700; color:var(--steel); font-size:14px; white-space:nowrap}
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:16px}
+  .formhead{font-family:"Barlow Condensed",sans-serif; font-weight:700; letter-spacing:.04em; text-transform:uppercase; font-size:14px; color:var(--steel); margin:-2px 0 2px}
+  .complete{display:grid; gap:14px; border-top:1.5px dashed var(--line); padding-top:14px; margin-top:2px}
+  .complete .formhead{color:var(--hivis-ink)}
+
+  form{display:grid; gap:14px}
+  .field{display:grid; gap:6px}
+  label{font-weight:600; font-size:13.5px; letter-spacing:.01em}
+  label .opt{color:var(--ink-2); font-weight:500}
+  .req{color:var(--red)}
+  input,select,textarea{font:inherit; color:var(--ink); background:var(--surface-2); border:1.5px solid var(--line); border-radius:10px; padding:0 12px; height:var(--tap); width:100%; outline:none}
+  textarea{height:auto; min-height:84px; padding:10px 12px; resize:vertical; line-height:1.4}
+  input:focus,textarea:focus,select:focus{border-color:var(--steel-2)}
+  input:focus-visible,select:focus-visible,textarea:focus-visible{box-shadow:0 0 0 3px rgba(36,74,102,.22)}
+  .pk{display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:center}
+  .pk .plus{font-weight:700; color:var(--ink-2); font-size:20px; text-align:center}
+  .hint{font-size:12px; color:var(--ink-2)}
+  select{appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%235A646E' d='M1 1l5 5 5-5'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; padding-right:36px}
+  select:disabled{opacity:.6}
+  .autre{margin-top:8px}
+
+  .agents{display:grid; gap:10px}
+  .agents-add{display:flex; gap:8px}
+  .agents-add input{flex:1 1 auto; min-width:0}
+  .mini.add{height:var(--tap); flex:0 0 auto; color:var(--steel); border-color:#C4D2DC; font-size:14px; font-weight:700}
+  .agents-list{display:flex; flex-wrap:wrap; gap:8px}
+  .agent-chip{appearance:none; border:1.5px solid var(--line); background:var(--surface-2); color:var(--ink); border-radius:999px; padding:9px 14px; font:inherit; font-weight:600; font-size:14px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; min-height:42px}
+  .agent-chip[aria-pressed="true"]{background:var(--steel); color:#fff; border-color:var(--steel)}
+  .agent-chip .tick{font-size:13px; opacity:0; transition:opacity .1s}
+  .agent-chip[aria-pressed="true"] .tick{opacity:1}
+  .agent-chip .rm{display:none; color:var(--red); font-weight:800; font-size:15px; line-height:1; margin-left:2px}
+  .agents.managing .agent-chip{cursor:default; background:var(--surface-2); color:var(--ink); border-color:#F0CFCB}
+  .agents.managing .agent-chip .tick{display:none}
+  .agents.managing .agent-chip .rm{display:inline}
+  .agents-empty{font-size:13px; color:var(--ink-2)}
+  .manage-link{appearance:none; background:none; border:0; color:var(--steel); font:inherit; font-weight:600; font-size:13px; text-decoration:underline; cursor:pointer; padding:2px 0; justify-self:start}
+
+  .seg{display:grid; grid-template-columns:1fr 1fr; border:1.5px solid var(--line); border-radius:10px; overflow:hidden; background:var(--surface-2)}
+  .seg button{appearance:none; border:0; background:transparent; height:var(--tap); font:inherit; font-weight:700; cursor:pointer; color:var(--ink-2); display:flex; align-items:center; justify-content:center; gap:8px; transition:background .12s,color .12s}
+  .seg button .dot{width:11px;height:11px;border-radius:50%;background:currentColor;opacity:.5}
+  .seg button[aria-pressed="true"]{color:#fff}
+  .seg button.ras[aria-pressed="true"]{background:var(--green)}
+  .seg button.fuite[aria-pressed="true"]{background:var(--red)}
+  .seg button[aria-pressed="true"] .dot{opacity:1; background:#fff}
+
+  .fils{display:grid; gap:14px}
+  .fils-group{display:grid; gap:8px}
+  .fils-group .gl{font-family:"Barlow Condensed",sans-serif; font-weight:700; letter-spacing:.1em; text-transform:uppercase; font-size:12px; color:var(--ink-2)}
+  .fils-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .fil{display:grid; gap:4px}
+  .fil label{font-size:12.5px; font-weight:600}
+  .fil-in{display:flex; gap:6px}
+  .fil-in input{flex:1 1 auto; min-width:0; height:46px; text-align:center; font-family:"IBM Plex Mono",monospace; font-weight:600; padding:0 6px}
+  .unit{display:flex; border:1.5px solid var(--line); border-radius:8px; overflow:hidden; flex:0 0 auto}
+  .unit button{appearance:none; border:0; background:var(--surface-2); color:var(--ink-2); font:inherit; font-weight:700; font-size:13px; width:34px; cursor:pointer}
+  .unit button[aria-pressed="true"]{background:var(--steel); color:#fff}
+
+  .seg button.ok[aria-pressed="true"]{background:var(--green); color:#fff}
+  .seg button.avoir[aria-pressed="true"]{background:var(--hivis); color:var(--hivis-ink)}
+  .cats{display:grid; gap:10px}
+  .cat-row{display:grid; gap:6px}
+  .cat-row .cl{font-weight:600; font-size:13.5px}
+  .pk.small input{height:46px}
+  .anos{display:grid; gap:10px}
+  .ano-add{display:grid; gap:8px}
+  .ano-add .anorow{display:flex; gap:8px}
+  .ano-add .anorow input{flex:1 1 auto; min-width:0}
+  .ano-add .anorow .mini.add{height:var(--tap)}
+  .quick{display:flex; flex-wrap:wrap; gap:6px}
+  .qbtn{appearance:none; border:1.5px solid var(--line); background:var(--surface-2); color:var(--steel); border-radius:999px; padding:6px 11px; font:inherit; font-weight:600; font-size:12.5px; cursor:pointer}
+  .qbtn:active{background:#E7EDF2}
+  .ano-list{display:grid; gap:8px}
+  .ano-item{display:flex; align-items:center; gap:10px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px}
+  .ano-item .apk{font-family:"IBM Plex Mono",monospace; font-weight:700; font-size:13px; background:var(--hivis); color:var(--hivis-ink); padding:3px 7px; border-radius:6px; white-space:nowrap}
+  .ano-item .anote{flex:1 1 auto; font-size:14px}
+  .ano-item .arm{appearance:none; border:0; background:none; color:var(--red); font-weight:800; font-size:16px; cursor:pointer; padding:2px 6px}
+  .ano-empty{font-size:13px; color:var(--ink-2)}
+  .cats-chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
+  .cchip{font-size:12px; font-weight:700; padding:4px 9px; border-radius:999px}
+  .cchip.ok{background:var(--green-bg); color:var(--green)}
+  .cchip.no{background:#FCEFD2; color:#8A5A00}
+  .ano-done{margin-top:10px; display:grid; gap:5px}
+  .ano-done .ad{display:flex; gap:8px; font-size:13.5px; align-items:baseline}
+  .ano-done .ad .p{font-family:"IBM Plex Mono",monospace; font-weight:700; color:#8A5A00; white-space:nowrap}
+  .pts-head{font-size:13px; font-weight:700; color:var(--steel); margin-bottom:2px}
+  .pts-list{display:grid; gap:8px; max-height:46vh; overflow:auto; padding:2px; border:1px solid var(--line); border-radius:10px; background:var(--surface-2)}
+  .pt{background:var(--surface); border:1px solid var(--line); border-left:5px solid var(--line); border-radius:10px; padding:9px 10px; display:grid; gap:7px}
+  .pt.ok{border-left-color:var(--green)}
+  .pt.ko{border-left-color:var(--red)}
+  .pt-top{display:flex; align-items:center; gap:9px}
+  .pt .apk{font-family:"IBM Plex Mono",monospace; font-weight:700; font-size:13px; background:#EEF1F3; color:var(--steel); padding:3px 7px; border-radius:6px; white-space:nowrap}
+  .pt .ptlab{font-size:13px; font-weight:700; flex:1 1 auto}
+  .ptlab.borne{color:#1F6FE0}
+  .ptlab.mou{color:#137A43}
+  .ptlab.artere{color:#7A3CC0}
+  .ptlab.caniveau{color:#0E7C86}
+  .ptlab.autre{color:#5A646E}
+  .pt .okbtn{appearance:none; border:1.5px solid var(--green); background:var(--surface); color:var(--green); border-radius:8px; height:36px; padding:0 14px; font:inherit; font-weight:700; font-size:13px; cursor:pointer; flex:0 0 auto}
+  .pt.ok .okbtn{background:var(--green); color:#fff}
+  .pt .ptcom{height:42px}
+  .pt.ok .ptcom{display:none}
+  .pt-rm{appearance:none; border:0; background:none; color:var(--red); font-weight:800; font-size:15px; cursor:pointer; padding:2px 4px; flex:0 0 auto}
+
+  .btn{appearance:none; border:0; border-radius:11px; height:var(--tap); padding:0 18px; font:inherit; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%}
+  .btn-primary{background:var(--steel); color:#fff}
+  .btn-primary:active{background:var(--steel-2)}
+  .btn-ghost{background:var(--surface); color:var(--ink); border:1.5px solid var(--line)}
+  .btn-hivis{background:var(--hivis); color:var(--hivis-ink)}
+  .btn-hivis:active{filter:brightness(.95)}
+  .err{color:var(--red); font-size:13px; font-weight:600}
+
+  .toolbar{display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap}
+  .toolbar input[type=search]{flex:1 1 100%; height:46px}
+  .toolbar select{flex:1 1 30%; height:46px; min-width:110px}
+  .exports{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px}
+  .exports .btn{height:48px}
+
+  .list{display:grid; gap:12px}
+  .year-head{font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:18px; letter-spacing:.04em; color:var(--steel); padding:8px 2px 2px; border-bottom:2px solid var(--steel); margin-top:6px}
+  .year-head:first-child{margin-top:0}
+  .folders-hint{color:var(--ink-2); font-size:13.5px; margin:0 2px 14px}
+  .folders-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .folder{position:relative; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px 16px 16px; text-align:left; cursor:pointer; box-shadow:var(--shadow); min-height:96px; display:grid; gap:3px; align-content:center; -webkit-tap-highlight-color:transparent}
+  .folder::before{content:""; position:absolute; top:-1px; left:16px; width:48px; height:9px; background:var(--hivis); border-radius:7px 7px 0 0}
+  .folder:active{transform:translateY(1px)}
+  .folder .fy{font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:32px; color:var(--steel); line-height:1}
+  .folder .fc{color:var(--ink-2); font-size:13px; font-weight:600}
+  .folder.all{background:var(--surface-2)}
+  .folder.all::before{background:var(--steel)}
+  .folder.all .fy{font-size:24px}
+  .empty{text-align:center; color:var(--ink-2); padding:30px 16px; border:1.5px dashed var(--line); border-radius:var(--radius); background:var(--surface)}
+  .entry{background:var(--surface); border:1px solid var(--line); border-left:6px solid var(--green); border-radius:12px; padding:14px; box-shadow:var(--shadow)}
+  .entry.fuite{border-left-color:var(--red)}
+  .entry.meas{border-left-color:var(--steel)}
+  .entry.todo{border-left-color:var(--hivis)}
+  .entry-top{display:flex; align-items:center; gap:12px}
+  .plaque{background:var(--hivis); color:var(--hivis-ink); font-weight:600; font-size:16px; padding:6px 10px; border-radius:8px; letter-spacing:.02em; white-space:normal; line-height:1.15; box-shadow:inset 0 0 0 1.5px rgba(58,42,0,.25)}
+  .plaque .lab{display:block; font-family:"Barlow",sans-serif; font-size:9px; font-weight:700; letter-spacing:.14em; opacity:.7; line-height:1; margin-bottom:1px}
+  .chip{margin-left:auto; font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:5px 10px; border-radius:999px}
+  .chip.ras{background:var(--green-bg); color:var(--green)}
+  .chip.fuite{background:var(--red-bg); color:var(--red)}
+  .chip.meas{background:#E7EDF2; color:var(--steel)}
+  .chip.todo{background:#FCEFD2; color:#8A5A00}
+  .entry-meta{margin-top:10px; display:grid; gap:3px; font-size:14px}
+  .entry-meta .line1{font-weight:700}
+  .entry-meta .sub{color:var(--ink-2); font-size:13px}
+  .entry-meta .joint{color:var(--ink)}
+  .todo-note{margin-top:9px; font-size:13px; color:#8A5A00; background:#FCEFD2; border-radius:9px; padding:8px 11px; font-weight:600}
+  .comment{margin-top:9px; background:var(--surface-2); border:1px solid var(--line); border-radius:9px; padding:9px 11px; font-size:13.5px}
+  .comment.fuite{background:var(--red-bg); border-color:#F3C9C2}
+  .meas-list{margin-top:10px; display:grid; grid-template-columns:1fr 1fr; gap:2px 14px}
+  .meas-list .mi{display:flex; justify-content:space-between; gap:8px; font-size:13px; border-bottom:1px dashed var(--line); padding:4px 0}
+  .meas-list .mi .k{color:var(--ink-2)}
+  .meas-list .mi .v{font-weight:700; font-family:"IBM Plex Mono",monospace}
+  .meas-list .mi .v.empty{color:#AEB8C0; font-weight:500}
+  .entry-actions{display:flex; gap:8px; margin-top:11px; flex-wrap:wrap}
+  .mini{appearance:none; border:1.5px solid var(--line); background:var(--surface); color:var(--ink-2); border-radius:9px; height:38px; padding:0 14px; font:inherit; font-weight:600; font-size:13px; cursor:pointer}
+  .mini.prim{color:#fff; background:var(--steel); border-color:var(--steel); font-weight:700}
+  .mini.del{color:var(--red); border-color:#F0CFCB}
+  .mini:active{filter:brightness(.97)}
+
+  .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px); background:var(--ink); color:#fff; padding:12px 18px; border-radius:11px; font-weight:600; font-size:14px; box-shadow:0 8px 24px rgba(0,0,0,.25); opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:50; max-width:90vw; text-align:center}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  @media(prefers-reduced-motion:reduce){*{transition:none !important}}
+
+  .who{margin-left:auto; color:#9FB6C9; font-size:12px; font-weight:600; display:none; text-align:right; line-height:1.2; max-width:40%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  body.authed .brandrow .who{display:block}
+  .logout{appearance:none; background:rgba(255,255,255,.14); color:#fff; border:0; height:38px; padding:0 12px; border-radius:9px; font:inherit; font-weight:600; font-size:13px; cursor:pointer; display:none; align-items:center; flex:0 0 auto}
+  body.authed .logout{display:inline-flex}
+  #authScreen{position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; overflow:auto; padding:calc(env(safe-area-inset-top) + 24px) 18px 24px}
+  body.authed #authScreen{display:none}
+  .auth-card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; max-width:420px; width:100%; margin:auto; display:grid; gap:14px}
+  .auth-brand{font-family:"Barlow Condensed",sans-serif; font-weight:700; text-transform:uppercase; letter-spacing:.07em; font-size:23px; color:var(--steel); text-align:center; line-height:1.05}
+  .auth-sub{text-align:center; color:var(--ink-2); font-size:13.5px; margin-top:-8px}
+  .auth-tabs{display:grid; grid-template-columns:1fr 1fr; border:1.5px solid var(--line); border-radius:10px; overflow:hidden}
+  .auth-tabs button{appearance:none; border:0; background:var(--surface-2); height:46px; font:inherit; font-weight:700; color:var(--ink-2); cursor:pointer}
+  .auth-tabs button[aria-pressed="true"]{background:var(--steel); color:#fff}
+  .auth-note{font-size:12.5px; color:var(--ink-2); background:var(--surface-2); border:1px solid var(--line); border-radius:9px; padding:9px 11px; line-height:1.45}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brandrow">
+    <button class="back" id="backBtn" aria-label="Retour">&#8592;</button>
+    <div class="brand">Outils de maintenance LT<small id="brandSub">Suite d'outils terrain</small></div>
+    <span class="who" id="whoami"></span>
+    <button class="logout" id="logoutBtn">Déconnexion</button>
+  </div>
+  <div class="rail"><div class="ties"></div></div>
+</header>
+
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-brand">Outils de maintenance LT</div>
+    <div class="auth-sub">Connexion agent</div>
+    <div class="auth-tabs" id="authTabs">
+      <button type="button" data-mode="login" aria-pressed="true">Connexion</button>
+      <button type="button" data-mode="signup" aria-pressed="false">Créer un compte</button>
+    </div>
+    <div class="field" id="authNameField" style="display:none">
+      <label for="authName">Nom de l'agent</label>
+      <input id="authName" autocomplete="name" placeholder="ex : Augustin D.">
+    </div>
+    <div class="field" id="authEmailField">
+      <label for="authEmail">E-mail</label>
+      <input id="authEmail" type="email" autocomplete="email" placeholder="prenom.nom@exemple.fr">
+    </div>
+    <div class="field" id="authPassField">
+      <label for="authPass">Mot de passe</label>
+      <input id="authPass" type="password" autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <div class="err" id="authErr"></div>
+    <button type="button" class="btn btn-primary" id="authSubmit">Se connecter</button>
+    <div class="auth-note" id="authNote"></div>
+  </div>
+</div>
+
+<main>
+  <!-- ============ HUB ============ -->
+  <section class="view active" id="hub">
+    <div class="eyebrow">Applications</div>
+    <div class="tiles">
+      <button class="tile" id="openBro">
+        <div class="ic">&#9673;</div>
+        <span class="badge">Disponible</span>
+        <div><h3>Gonflage de BRO</h3><p>Planifier les BRO par PK, puis noter fuite, agents et date.</p></div>
+      </button>
+      <button class="tile" id="openDeriv">
+        <div class="ic">&#937;</div>
+        <span class="badge">Disponible</span>
+        <div><h3>Mesures de dérivation</h3><p>Planifier les PK, puis relever fils-terre et entre fils (MΩ/GΩ).</p></div>
+      </button>
+      <button class="tile" id="openMps">
+        <div class="ic">&#8596;</div>
+        <span class="badge">Disponible</span>
+        <div><h3>MPS</h3><p>Tournée bornes / artères / caniveaux sur un intervalle de PK.</p></div>
+      </button>
+      <button class="tile" id="openMpc">
+        <div class="ic">&#10227;</div>
+        <span class="badge">Disponible</span>
+        <div><h3>MPC</h3><p>Reprise programmée l'année suivante des défauts relevés en MPS.</p></div>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ DOSSIERS (par année) ============ -->
+  <section class="view" id="folders">
+    <div class="apptitle"><h2 id="foldersTitle">Dossiers</h2><span class="count" id="foldersCount"></span></div>
+    <p class="folders-hint">Choisissez l'année à consulter ou à compléter.</p>
+    <div class="folders-grid" id="foldersGrid"></div>
+  </section>
+
+  <!-- ============ GONFLAGE DE BRO ============ -->
+  <section class="view" id="bro">
+    <div class="apptitle"><h2>Gonflage de BRO</h2><span class="count" id="bro_count">0 point</span></div>
+    <div class="card">
+      <form id="bro_form" novalidate>
+        <div class="formhead" id="bro_formhead">Nouveau point à faire</div>
+        <div class="field">
+          <label for="bro_annee">Année de campagne <span class="req">*</span></label>
+          <select id="bro_annee"></select>
+        </div>
+        <div class="field">
+          <label for="bro_ligne">Ligne ferroviaire <span class="req">*</span></label>
+          <select id="bro_ligne"><option value="">&mdash; Choisir une ligne &mdash;</option></select>
+          <input id="bro_ligneAutre" class="autre" autocomplete="off" placeholder="Saisir la ligne" style="display:none">
+        </div>
+        <div class="field">
+          <label for="bro_troncon">Tronçon <span class="req">*</span></label>
+          <select id="bro_troncon" disabled><option value="">&mdash; Choisir d'abord une ligne &mdash;</option></select>
+          <input id="bro_tronconAutre" class="autre" autocomplete="off" placeholder="Saisir le tronçon (ex : Mézidon – Caen)" style="display:none">
+        </div>
+        <div class="field">
+          <label>PK – Point kilométrique <span class="req">*</span></label>
+          <div class="pk">
+            <input id="bro_pkKm" inputmode="numeric" placeholder="132" aria-label="Kilomètre">
+            <span class="plus">+</span>
+            <input id="bro_pkM" inputmode="numeric" placeholder="345" maxlength="3" aria-label="Mètres">
+          </div>
+          <span class="hint">Kilomètre puis mètres — donne ex. 132+345</span>
+        </div>
+        <div class="field">
+          <label for="bro_joint">Numéro du joint <span class="opt">(facultatif)</span></label>
+          <input id="bro_joint" autocomplete="off" placeholder="ex : 116/1D">
+        </div>
+
+        <div class="complete" id="bro_complete" style="display:none">
+          <div class="formhead">Relevé du contrôle</div>
+          <div class="field">
+            <label for="bro_date">Date <span class="req">*</span></label>
+            <input id="bro_date" type="date">
+          </div>
+          <div class="field">
+            <label>Agent(s) ayant réalisé <span class="req">*</span></label>
+            <div class="agents" id="bro_agents">
+              <div class="agents-add">
+                <input id="bro_agentNew" autocomplete="off" placeholder="Nom d'un agent à ajouter">
+                <button type="button" class="mini add" id="bro_agentAdd">Ajouter</button>
+              </div>
+              <div class="agents-list" id="bro_agentsList"></div>
+              <span class="hint">Touchez un agent pour le sélectionner (plusieurs possibles).</span>
+              <button type="button" class="manage-link" id="bro_agentsManage">Gérer le répertoire</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>État du joint <span class="req">*</span></label>
+            <div class="seg" id="bro_seg" role="group" aria-label="État">
+              <button type="button" class="ras" data-val="RAS" aria-pressed="true"><span class="dot"></span>RAS</button>
+              <button type="button" class="fuite" data-val="Fuite" aria-pressed="false"><span class="dot"></span>Fuite</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="bro_commentaire">Commentaire <span id="bro_commLabel" class="opt">(facultatif)</span></label>
+            <textarea id="bro_commentaire" placeholder="Précisions sur le relevé…"></textarea>
+          </div>
+        </div>
+
+        <div class="err" id="bro_err"></div>
+        <button type="submit" class="btn btn-primary" id="bro_submit">＋ Ajouter à la liste</button>
+        <button type="button" class="btn btn-ghost" id="bro_cancel" style="display:none">Annuler</button>
+      </form>
+    </div>
+    <div class="toolbar">
+      <input type="search" id="bro_search" placeholder="Rechercher…">
+      <select id="bro_status" aria-label="État"><option value="all">Tous</option><option value="todo">À faire</option><option value="done">Fait</option></select>
+      <select id="bro_filter" aria-label="Filtrer par ligne"><option value="">Toutes lignes</option></select>
+      <select id="bro_year" aria-label="Filtrer par année"><option value="">Toutes années</option></select>
+    </div>
+    <div class="exports">
+      <button class="btn btn-hivis" id="bro_xlsx">⤓ Exporter Excel</button>
+      <button class="btn btn-ghost" id="bro_csv">⤓ Exporter CSV</button>
+    </div>
+    <div class="list" id="bro_list"></div>
+  </section>
+
+  <!-- ============ MESURES DE DÉRIVATION ============ -->
+  <section class="view" id="deriv">
+    <div class="apptitle"><h2>Mesures de dérivation</h2><span class="count" id="dr_count">0 point</span></div>
+    <div class="card">
+      <form id="dr_form" novalidate>
+        <div class="formhead" id="dr_formhead">Nouveau point à faire</div>
+        <div class="field">
+          <label for="dr_annee">Année de campagne <span class="req">*</span></label>
+          <select id="dr_annee"></select>
+        </div>
+        <div class="field">
+          <label for="dr_ligne">Ligne ferroviaire <span class="req">*</span></label>
+          <select id="dr_ligne"><option value="">&mdash; Choisir une ligne &mdash;</option></select>
+          <input id="dr_ligneAutre" class="autre" autocomplete="off" placeholder="Saisir la ligne" style="display:none">
+        </div>
+        <div class="field">
+          <label for="dr_troncon">Tronçon <span class="req">*</span></label>
+          <select id="dr_troncon" disabled><option value="">&mdash; Choisir d'abord une ligne &mdash;</option></select>
+          <input id="dr_tronconAutre" class="autre" autocomplete="off" placeholder="Saisir le tronçon (ex : Mézidon – Caen)" style="display:none">
+        </div>
+        <div class="field">
+          <label>PK – Point kilométrique <span class="req">*</span></label>
+          <div class="pk">
+            <input id="dr_pkKm" inputmode="numeric" placeholder="132" aria-label="Kilomètre">
+            <span class="plus">+</span>
+            <input id="dr_pkM" inputmode="numeric" placeholder="345" maxlength="3" aria-label="Mètres">
+          </div>
+          <span class="hint">Kilomètre puis mètres — donne ex. 132+345</span>
+        </div>
+        <div class="field">
+          <label for="dr_joint">Nom du joint <span class="opt">(facultatif)</span></label>
+          <input id="dr_joint" autocomplete="off" placeholder="ex : 116/1D">
+        </div>
+
+        <div class="complete" id="dr_complete" style="display:none">
+          <div class="formhead">Relevé des mesures</div>
+          <div class="field">
+            <label>Mesures de dérivation</label>
+            <div class="fils" id="dr_fils">
+              <div class="fils-group">
+                <div class="gl">Fil à la terre</div>
+                <div class="fils-grid">
+                  <div class="fil"><label for="dr_f1t">Fil 1 – Terre</label><div class="fil-in"><input id="dr_f1t" inputmode="decimal" placeholder="—"><div class="unit" data-fil="f1t"><button type="button" data-u="M" aria-pressed="true">M</button><button type="button" data-u="G" aria-pressed="false">G</button></div></div></div>
+                  <div class="fil"><label for="dr_f2t">Fil 2 – Terre</label><div class="fil-in"><input id="dr_f2t" inputmode="decimal" placeholder="—"><div class="unit" data-fil="f2t"><button type="button" data-u="M" aria-pressed="true">M</button><button type="button" data-u="G" aria-pressed="false">G</button></div></div></div>
+                  <div class="fil"><label for="dr_f3t">Fil 3 – Terre</label><div class="fil-in"><input id="dr_f3t" inputmode="decimal" placeholder="—"><div class="unit" data-fil="f3t"><button type="button" data-u="M" aria-pressed="true">M</button><button type="button" data-u="G" aria-pressed="false">G</button></div></div></div>
+                  <div class="fil"><label for="dr_f4t">Fil 4 – Terre</label><div class="fil-in"><input id="dr_f4t" inputmode="decimal" placeholder="—"><div class="unit" data-fil="f4t"><button type="button" data-u="M" aria-pressed="true">M</button><button type="button" data-u="G" aria-pressed="false">G</button></div></div></div>
+                </div>
+              </div>
+              <div class="fils-group">
+                <div class="gl">Entre fils</div>
+                <div class="fils-grid">
+                  <div class="fil"><label for="dr_f12">Fil 1 – 2</label><div class="fil-in"><input id="dr_f12" inputmode="decimal" placeholder="—"><div class="unit" data-fil="f12"><button type="button" data-u="M" aria-pressed="true">M</button><button type="button" data-u="G" aria-pressed="false">G</button></div></div></div>
+                  <div class="fil"><label for="dr_f13">Fil 1 – 3</label><div class="fil-in"><input id="dr_f13" inputmode="decimal" placeholder="—"><div class="unit" data-fil="f13"><button type="button" data-u="M" aria-pressed="true">M</button><button type="button" data-u="G" aria-pressed="false">G</button></div></div></div>
+                  <div class="fil"><label for="dr_f14">Fil 1 – 4</label><div class="fil-in"><input id="dr_f14" inputmode="decimal" placeholder="—"><div class="unit" data-fil="f14"><button type="button" data-u="M" aria-pressed="true">M</button><button type="button" data-u="G" aria-pressed="false">G</button></div></div></div>
+                  <div class="fil"><label for="dr_f23">Fil 2 – 3</label><div class="fil-in"><input id="dr_f23" inputmode="decimal" placeholder="—"><div class="unit" data-fil="f23"><button type="button" data-u="M" aria-pressed="true">M</button><button type="button" data-u="G" aria-pressed="false">G</button></div></div></div>
+                  <div class="fil"><label for="dr_f24">Fil 2 – 4</label><div class="fil-in"><input id="dr_f24" inputmode="decimal" placeholder="—"><div class="unit" data-fil="f24"><button type="button" data-u="M" aria-pressed="true">M</button><button type="button" data-u="G" aria-pressed="false">G</button></div></div></div>
+                  <div class="fil"><label for="dr_f34">Fil 3 – 4</label><div class="fil-in"><input id="dr_f34" inputmode="decimal" placeholder="—"><div class="unit" data-fil="f34"><button type="button" data-u="M" aria-pressed="true">M</button><button type="button" data-u="G" aria-pressed="false">G</button></div></div></div>
+                </div>
+              </div>
+            </div>
+            <span class="hint">Valeur + unité (M = MΩ, G = GΩ). Laissez vide si non mesuré.</span>
+          </div>
+          <div class="field">
+            <label for="dr_longueur">Longueur de câble <span class="opt">(facultatif)</span></label>
+            <input id="dr_longueur" inputmode="decimal" autocomplete="off" placeholder="ex : 320 m">
+          </div>
+          <div class="field">
+            <label for="dr_quartz">N° de la quartz vérifiée</label>
+            <select id="dr_quartz"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option></select>
+          </div>
+          <div class="field">
+            <label for="dr_appareil">Appareil utilisé</label>
+            <select id="dr_appareil"><option value="">&mdash; Aucun &mdash;</option></select>
+            <div class="agents-add" style="margin-top:8px">
+              <input id="dr_appareilNew" autocomplete="off" placeholder="N° d'un nouvel appareil">
+              <button type="button" class="mini add" id="dr_appareilAdd">Ajouter</button>
+            </div>
+            <button type="button" class="manage-link" id="dr_appareilManage">Gérer les appareils</button>
+            <div class="agents-list" id="dr_appareilList" style="display:none; margin-top:8px"></div>
+          </div>
+          <div class="field">
+            <label for="dr_date">Date <span class="req">*</span></label>
+            <input id="dr_date" type="date">
+          </div>
+          <div class="field">
+            <label>Agent(s) ayant réalisé <span class="req">*</span></label>
+            <div class="agents" id="dr_agents">
+              <div class="agents-add">
+                <input id="dr_agentNew" autocomplete="off" placeholder="Nom d'un agent à ajouter">
+                <button type="button" class="mini add" id="dr_agentAdd">Ajouter</button>
+              </div>
+              <div class="agents-list" id="dr_agentsList"></div>
+              <span class="hint">Touchez un agent pour le sélectionner (plusieurs possibles).</span>
+              <button type="button" class="manage-link" id="dr_agentsManage">Gérer le répertoire</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="err" id="dr_err"></div>
+        <button type="submit" class="btn btn-primary" id="dr_submit">＋ Ajouter à la liste</button>
+        <button type="button" class="btn btn-ghost" id="dr_cancel" style="display:none">Annuler</button>
+      </form>
+    </div>
+    <div class="toolbar">
+      <input type="search" id="dr_search" placeholder="Rechercher…">
+      <select id="dr_status" aria-label="État"><option value="all">Tous</option><option value="todo">À faire</option><option value="done">Fait</option></select>
+      <select id="dr_filter" aria-label="Filtrer par ligne"><option value="">Toutes lignes</option></select>
+      <select id="dr_year" aria-label="Filtrer par année"><option value="">Toutes années</option></select>
+    </div>
+    <div class="exports">
+      <button class="btn btn-hivis" id="dr_xlsx">⤓ Exporter Excel</button>
+      <button class="btn btn-ghost" id="dr_csv">⤓ Exporter CSV</button>
+    </div>
+    <div class="list" id="dr_list"></div>
+  </section>
+
+  <!-- ============ MPS ============ -->
+  <section class="view" id="mps">
+    <div class="apptitle"><h2>MPS</h2><span class="count" id="mp_count">0 point</span></div>
+    <div class="card">
+      <form id="mp_form" novalidate>
+        <div class="formhead" id="mp_formhead">Nouvel intervalle à faire</div>
+        <div class="field">
+          <label for="mp_annee">Année de campagne <span class="req">*</span></label>
+          <select id="mp_annee"></select>
+        </div>
+        <div class="field">
+          <label for="mp_ligne">Ligne ferroviaire <span class="req">*</span></label>
+          <select id="mp_ligne"><option value="">&mdash; Choisir une ligne &mdash;</option></select>
+          <input id="mp_ligneAutre" class="autre" autocomplete="off" placeholder="Saisir la ligne" style="display:none">
+        </div>
+        <div class="field">
+          <label for="mp_troncon">Tronçon <span class="req">*</span></label>
+          <select id="mp_troncon" disabled><option value="">&mdash; Choisir d'abord une ligne &mdash;</option></select>
+          <input id="mp_tronconAutre" class="autre" autocomplete="off" placeholder="Saisir le tronçon (ex : Mézidon – Caen)" style="display:none">
+        </div>
+        <div class="field">
+          <label>Du PK <span class="req">*</span></label>
+          <div class="pk small"><input id="mp_pkDebKm" inputmode="numeric" placeholder="123" aria-label="Km début"><span class="plus">+</span><input id="mp_pkDebM" inputmode="numeric" placeholder="000" maxlength="3" aria-label="Mètres début"></div>
+        </div>
+        <div class="field">
+          <label>Au PK <span class="req">*</span></label>
+          <div class="pk small"><input id="mp_pkFinKm" inputmode="numeric" placeholder="130" aria-label="Km fin"><span class="plus">+</span><input id="mp_pkFinM" inputmode="numeric" placeholder="000" maxlength="3" aria-label="Mètres fin"></div>
+        </div>
+
+        <div class="complete" id="mp_complete" style="display:none">
+          <div class="formhead">Relevé de la tournée</div>
+          <div class="field">
+            <label>Vérification des bornes (tous les 500 m)</label>
+            <div class="pts-head"><span id="mp_progress">0 / 0 vérifiés</span></div>
+            <div class="pts-list" id="mp_points"></div>
+          </div>
+          <div class="field">
+            <label>Ajouter un point spécifique</label>
+            <div class="ano-add">
+              <div class="pk small"><input id="mp_addKm" inputmode="numeric" placeholder="125" aria-label="Km point"><span class="plus">+</span><input id="mp_addM" inputmode="numeric" placeholder="234" maxlength="3" aria-label="Mètres point"></div>
+              <div class="anorow"><input id="mp_addNote" autocomplete="off" placeholder="Libellé (ex : mou à vérifier)"><button type="button" class="mini add" id="mp_addBtn">Ajouter</button></div>
+            </div>
+            <div class="quick" id="mp_quick">
+              <button type="button" class="qbtn">Mou à vérifier</button>
+              <button type="button" class="qbtn">Artère de câble</button>
+              <button type="button" class="qbtn">Caniveau</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="mp_date">Date <span class="req">*</span></label>
+            <input id="mp_date" type="date">
+          </div>
+          <div class="field">
+            <label>Agent(s) ayant réalisé <span class="req">*</span></label>
+            <div class="agents" id="mp_agents">
+              <div class="agents-add">
+                <input id="mp_agentNew" autocomplete="off" placeholder="Nom d'un agent à ajouter">
+                <button type="button" class="mini add" id="mp_agentAdd">Ajouter</button>
+              </div>
+              <div class="agents-list" id="mp_agentsList"></div>
+              <span class="hint">Touchez un agent pour le sélectionner (plusieurs possibles).</span>
+              <button type="button" class="manage-link" id="mp_agentsManage">Gérer le répertoire</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="err" id="mp_err"></div>
+        <button type="submit" class="btn btn-primary" id="mp_submit">＋ Ajouter à la liste</button>
+        <button type="button" class="btn btn-ghost" id="mp_cancel" style="display:none">Annuler</button>
+      </form>
+    </div>
+    <div class="toolbar">
+      <input type="search" id="mp_search" placeholder="Rechercher…">
+      <select id="mp_status" aria-label="État"><option value="all">Tous</option><option value="todo">À faire</option><option value="done">Fait</option></select>
+      <select id="mp_filter" aria-label="Filtrer par ligne"><option value="">Toutes lignes</option></select>
+      <select id="mp_year" aria-label="Filtrer par année"><option value="">Toutes années</option></select>
+    </div>
+    <div class="exports">
+      <button class="btn btn-hivis" id="mp_xlsx">⤓ Exporter Excel</button>
+      <button class="btn btn-ghost" id="mp_csv">⤓ Exporter CSV</button>
+    </div>
+    <div class="list" id="mp_list"></div>
+  </section>
+
+  <!-- ============ MPC ============ -->
+  <section class="view" id="mpc">
+    <div class="apptitle"><h2>MPC</h2><span class="count" id="mc_count">0 action</span></div>
+    <div class="card">
+      <button type="button" class="btn btn-hivis" id="mc_import" style="margin-bottom:14px">⟳ Importer les défauts MPS (→ année suivante)</button>
+      <form id="mc_form" novalidate>
+        <div class="formhead" id="mc_formhead">Nouvelle action à programmer</div>
+        <div class="field">
+          <label for="mc_annee">Année de réalisation <span class="req">*</span></label>
+          <select id="mc_annee"></select>
+        </div>
+        <div class="field">
+          <label for="mc_mois">Mois</label>
+          <select id="mc_mois">
+            <option value="01">01 – Janvier</option><option value="02">02 – Février</option><option value="03">03 – Mars</option><option value="04">04 – Avril</option><option value="05">05 – Mai</option><option value="06">06 – Juin</option><option value="07">07 – Juillet</option><option value="08">08 – Août</option><option value="09">09 – Septembre</option><option value="10">10 – Octobre</option><option value="11">11 – Novembre</option><option value="12">12 – Décembre</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="mc_ligne">Ligne ferroviaire <span class="req">*</span></label>
+          <select id="mc_ligne"><option value="">&mdash; Choisir une ligne &mdash;</option></select>
+          <input id="mc_ligneAutre" class="autre" autocomplete="off" placeholder="Saisir la ligne" style="display:none">
+        </div>
+        <div class="field">
+          <label for="mc_troncon">Tronçon <span class="req">*</span></label>
+          <select id="mc_troncon" disabled><option value="">&mdash; Choisir d'abord une ligne &mdash;</option></select>
+          <input id="mc_tronconAutre" class="autre" autocomplete="off" placeholder="Saisir le tronçon (ex : Mézidon – Caen)" style="display:none">
+        </div>
+        <div class="field">
+          <label>PK – Point kilométrique <span class="req">*</span></label>
+          <div class="pk"><input id="mc_pkKm" inputmode="numeric" placeholder="125" aria-label="Kilomètre"><span class="plus">+</span><input id="mc_pkM" inputmode="numeric" placeholder="540" maxlength="3" aria-label="Mètres"></div>
+        </div>
+        <div class="field">
+          <label for="mc_probleme">Problème à reprendre <span class="req">*</span></label>
+          <input id="mc_probleme" autocomplete="off" placeholder="ex : Mou à débrouiller">
+        </div>
+
+        <div class="complete" id="mc_complete" style="display:none">
+          <div class="formhead">Réalisation</div>
+          <div class="field">
+            <label for="mc_date">Date <span class="req">*</span></label>
+            <input id="mc_date" type="date">
+          </div>
+          <div class="field">
+            <label>Agent(s) ayant réalisé <span class="req">*</span></label>
+            <div class="agents" id="mc_agents">
+              <div class="agents-add">
+                <input id="mc_agentNew" autocomplete="off" placeholder="Nom d'un agent à ajouter">
+                <button type="button" class="mini add" id="mc_agentAdd">Ajouter</button>
+              </div>
+              <div class="agents-list" id="mc_agentsList"></div>
+              <span class="hint">Touchez un agent pour le sélectionner (plusieurs possibles).</span>
+              <button type="button" class="manage-link" id="mc_agentsManage">Gérer le répertoire</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="mc_commentaire">Commentaire / travaux réalisés <span class="opt">(facultatif)</span></label>
+            <textarea id="mc_commentaire" placeholder="Précisions sur la reprise…"></textarea>
+          </div>
+        </div>
+
+        <div class="err" id="mc_err"></div>
+        <button type="submit" class="btn btn-primary" id="mc_submit">＋ Ajouter à la liste</button>
+        <button type="button" class="btn btn-ghost" id="mc_cancel" style="display:none">Annuler</button>
+      </form>
+    </div>
+    <div class="toolbar">
+      <input type="search" id="mc_search" placeholder="Rechercher…">
+      <select id="mc_status" aria-label="État"><option value="all">Tous</option><option value="todo">À faire</option><option value="done">Fait</option></select>
+      <select id="mc_filter" aria-label="Filtrer par ligne"><option value="">Toutes lignes</option></select>
+      <select id="mc_year" aria-label="Filtrer par année"><option value="">Toutes années</option></select>
+    </div>
+    <div class="exports">
+      <button class="btn btn-hivis" id="mc_xlsx">⤓ Exporter Excel</button>
+      <button class="btn btn-ghost" id="mc_csv">⤓ Exporter CSV</button>
+    </div>
+    <div class="list" id="mc_list"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ====== CONNEXION & SYNCHRO PARTAGÉE (Firebase) ======
+  // >>> Collez ici la config de VOTRE projet Firebase (voir le guide fourni). <<<
+  var FIREBASE_CONFIG = {
+    apiKey: "VOTRE_API_KEY",
+    authDomain: "VOTRE_PROJET.firebaseapp.com",
+    projectId: "VOTRE_PROJET",
+    storageBucket: "VOTRE_PROJET.appspot.com",
+    messagingSenderId: "VOTRE_SENDER_ID",
+    appId: "VOTRE_APP_ID"
+  };
+  var CLOUD = (FIREBASE_CONFIG.apiKey.indexOf("VOTRE_")===-1) && (typeof firebase!=="undefined");
+  var fs=null, fbAuth=null;
+  if(CLOUD){
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);
+      fbAuth=firebase.auth(); fs=firebase.firestore();
+      if(fs.enablePersistence) fs.enablePersistence({synchronizeTabs:true}).catch(function(){});
+    }catch(e){ console.error("Firebase init", e); CLOUD=false; }
+  }
+  var localCbs={};
+  function dbSubscribe(localKey, docId, field, cb){
+    if(CLOUD){ return fs.collection("lt").doc(docId).onSnapshot(function(s){ cb((s.exists&&s.data()[field])||[]); }, function(e){ console.error("sync", e); }); }
+    localCbs[localKey]=cb; var v=[]; try{ v=JSON.parse(localStorage.getItem(localKey))||[]; }catch(e){} cb(v); return function(){};
+  }
+  function dbSave(localKey, docId, field, value){
+    if(CLOUD){ var o={}; o[field]=value; o._at=Date.now(); fs.collection("lt").doc(docId).set(o,{merge:true}).catch(function(e){ console.error("save", e); }); }
+    else { try{ localStorage.setItem(localKey, JSON.stringify(value)); }catch(e){} }
+  }
+
+  var $=function(id){ return document.getElementById(id); };
+  function pad3(v){ v=String(v==null?"":v).replace(/\D/g,""); if(v==="") return ""; return v.padStart(3,"0").slice(-3); }
+  function pkString(km,m){ km=String(km||"").replace(/\D/g,""); var mm=pad3(m); if(km==="" && mm==="") return ""; return km+"+"+(mm===""?"000":mm); }
+  function frDate(iso){ if(!iso) return ""; var p=iso.split("-"); if(p.length!==3) return iso; return p[2]+"/"+p[1]+"/"+p[0]; }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function todayISO(){ var d=new Date(), off=d.getTimezoneOffset(); return new Date(d.getTime()-off*60000).toISOString().slice(0,10); }
+  var toastT;
+  function toast(msg){ var t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(function(){ t.classList.remove("show"); },2600); }
+
+  var APPS={};
+  var TOOLNAMES={ bro:"Gonflage de BRO", deriv:"Mesures de dérivation", mps:"MPS", mpc:"MPC" };
+
+  // ---- Génération d'une feuille Excel mise en forme ----
+  function xstyle(ws,r,c,s){ var ref=XLSX.utils.encode_cell({r:r,c:c}); if(!ws[ref]) ws[ref]={t:"s",v:""}; ws[ref].s=Object.assign(ws[ref].s||{}, s); }
+  function styledSheet(head, body, title, widths){
+    var aoa=[[title],[]]; aoa.push(head); body.forEach(function(row){ aoa.push(row); });
+    var ws=XLSX.utils.aoa_to_sheet(aoa); var n=head.length;
+    ws["!cols"]=widths||head.map(function(){ return {wch:16}; });
+    ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:n-1}}];
+    var thin={style:"thin",color:{rgb:"D6DDE3"}}; var bd={top:thin,bottom:thin,left:thin,right:thin};
+    xstyle(ws,0,0,{font:{bold:true,sz:14,color:{rgb:"16324A"}},alignment:{vertical:"center"}});
+    for(var c=0;c<n;c++){ xstyle(ws,2,c,{font:{bold:true,color:{rgb:"FFFFFF"}},fill:{fgColor:{rgb:"16324A"}},alignment:{horizontal:"center",vertical:"center",wrapText:true},border:bd}); }
+    for(var r=0;r<body.length;r++){ var rr=r+3; var z=(r%2===1); for(var cc=0;cc<n;cc++){ var st={border:bd,alignment:{vertical:"top",wrapText:true}}; if(z) st.fill={fgColor:{rgb:"F4F6F8"}}; xstyle(ws,rr,cc,st); } }
+    ws["!rows"]=[{hpt:24},{hpt:6},{hpt:20}];
+    ws["!autofilter"]={ref:XLSX.utils.encode_range({s:{r:2,c:0},e:{r:2+body.length,c:n-1}})};
+    ws["!freeze"]={xSplit:0,ySplit:3,topLeftCell:"A4",activePane:"bottomLeft",state:"frozen"};
+    return ws;
+  }
+
+  var LIGNES=[
+    {nom:"Mantes – Cherbourg", gares:["Mantes-la-Jolie","Bréval","Bueil","Évreux-Normandie","Bernay","Lisieux","Mézidon","Caen","Bayeux","Le Molay-Littry","Lison","Carentan","Valognes","Cherbourg-en-Cotentin"]},
+    {nom:"Caen – Le Mans", gares:["Caen","Mézidon","Saint-Pierre-sur-Dives","Argentan","Surdon","Sées","Alençon","Le Mans"]},
+    {nom:"Caen – Rouen (par Bernay)", gares:["Caen","Mézidon","Lisieux","Bernay","Serquigny","Brionne","Elbeuf-Saint-Aubin","Oissel","Rouen-Rive-Droite"]},
+    {nom:"Caen – Granville", gares:["Caen","Bayeux","Le Molay-Littry","Lison","Saint-Lô","Coutances","Granville"]},
+    {nom:"Paris – Granville", gares:["Nonancourt","Verneuil-sur-Avre","L'Aigle","Surdon","Argentan","Briouze","Flers","Vire","Villedieu-les-Poêles","Granville"]},
+    {nom:"Granville – Rennes", gares:["Granville","Folligny","Avranches","Pontorson-Mont-Saint-Michel"]},
+    {nom:"Paris – Le Havre", gares:["Vernon-Giverny","Gaillon-Aubevoye","Val-de-Reuil","Oissel","Rouen-Rive-Droite","Malaunay-Le Houlme","Barentin","Pavilly","Motteville","Yvetot","Bréauté-Beuzeville","Harfleur","Le Havre"]},
+    {nom:"Rouen – Dieppe", gares:["Rouen-Rive-Droite","Malaunay-Le Houlme","Montville","Clères","Auffay","Longueville-sur-Scie","Dieppe"]},
+    {nom:"Rouen – Serqueux – Amiens", gares:["Rouen-Rive-Droite","Serqueux","Abancourt"]},
+    {nom:"Gisors – Serqueux", gares:["Gisors","Sérifontaine","Gournay-Ferrières","Serqueux"]},
+    {nom:"Lisieux – Trouville-Deauville", gares:["Lisieux","Le Grand-Jardin","Pont-l'Évêque","Trouville-Deauville"]},
+    {nom:"Trouville-Deauville – Dives-Cabourg", gares:["Trouville-Deauville","Blonville-Benerville","Villers-sur-Mer","Houlgate","Dives-Cabourg"]},
+    {nom:"Le Havre – Fécamp", gares:["Le Havre","Harfleur","Bréauté-Beuzeville","Les Ifs","Fécamp"]},
+    {nom:"Le Havre – Rolleville", gares:["Le Havre","Montivilliers","Épouville","Rolleville"]}
+  ];
+  function troncons(nom){ var l; for(var i=0;i<LIGNES.length;i++){ if(LIGNES[i].nom===nom){ l=LIGNES[i]; break; } } if(!l) return []; var out=[]; for(var j=0;j<l.gares.length-1;j++) out.push(l.gares[j]+" – "+l.gares[j+1]); return out; }
+
+  var RKEY="outilsvoie.agents.v1", roster=[];
+  function subscribeRoster(){ dbSubscribe(RKEY, "agents", "roster", function(arr){ if(!Array.isArray(arr)) arr=[]; roster=arr; renderAllPickers(); }); }
+  function saveRoster(){ dbSave(RKEY, "agents", "roster", roster); }
+
+  // ---- Répertoire partagé des appareils de mesure (outil Dérivation) ----
+  var appareils=[]; var AKEY="outilsvoie.appareils.v1";
+  function subscribeAppareils(){ dbSubscribe(AKEY, "appareils", "list", function(arr){ if(!Array.isArray(arr)) arr=[]; appareils=arr; renderAppareils(); }); }
+  function saveAppareils(){ dbSave(AKEY, "appareils", "list", appareils); }
+  function renderAppareils(){
+    var sel=$("dr_appareil"); if(sel){ var cur=sel.value; sel.innerHTML='<option value="">— Aucun —</option>'+appareils.map(function(a){ return '<option value="'+esc(a)+'">'+esc(a)+'</option>'; }).join(""); if(appareils.indexOf(cur)>-1) sel.value=cur; }
+    var list=$("dr_appareilList"); if(list){ list.innerHTML = appareils.length ? appareils.map(function(a){ return '<span class="agent-chip" data-rm="'+esc(a)+'" style="cursor:default">'+esc(a)+' <b style="cursor:pointer">✕</b></span>'; }).join("") : '<span class="hint">Aucun appareil enregistré.</span>'; }
+  }
+  function addAppareil(n){ n=(n||"").trim(); if(!n) return; if(appareils.indexOf(n)<0){ appareils.push(n); appareils.sort(function(a,b){ return a.localeCompare(b,'fr',{numeric:true}); }); saveAppareils(); renderAppareils(); } }
+  function removeAppareil(n){ var i=appareils.indexOf(n); if(i>-1){ appareils.splice(i,1); saveAppareils(); renderAppareils(); } }
+  function addAgentToRoster(name){ name=(name||"").trim(); if(!name) return; var ex=false; for(var i=0;i<roster.length;i++){ if(roster[i].toLowerCase()===name.toLowerCase()){ ex=true; break; } } if(!ex){ roster.push(name); roster.sort(function(a,b){return a.localeCompare(b,'fr');}); saveRoster(); } }
+  function removeAgentFromRoster(name){ if(!confirm('Retirer « '+name+' » du répertoire ?')) return; roster=roster.filter(function(a){return a!==name;}); pickers.forEach(function(p){ p.sel=p.sel.filter(function(a){return a!==name;}); }); saveRoster(); renderAllPickers(); }
+
+  var pickers=[];
+  function makePicker(ids){
+    var p={ sel:[], managing:false, ids:ids }; pickers.push(p);
+    var nw=$(ids.nw), add=$(ids.add), listEl=$(ids.list), manage=$(ids.manage), wrap=$(ids.wrap);
+    add.addEventListener("click", function(){ var nm=nw.value.trim(); if(!nm){ nw.focus(); return; } addAgentToRoster(nm); if(p.sel.indexOf(nm)<0) p.sel.push(nm); nw.value=""; renderAllPickers(); nw.focus(); });
+    nw.addEventListener("keydown", function(e){ if(e.key==="Enter"){ e.preventDefault(); add.click(); } });
+    listEl.addEventListener("click", function(e){ var chip=e.target.closest(".agent-chip"); if(!chip) return; var name=chip.getAttribute("data-agent"); if(p.managing || e.target.classList.contains("rm")) removeAgentFromRoster(name); else { var i=p.sel.indexOf(name); if(i<0) p.sel.push(name); else p.sel.splice(i,1); renderPicker(p); } });
+    manage.addEventListener("click", function(){ p.managing=!p.managing; wrap.classList.toggle("managing", p.managing); manage.textContent=p.managing?"Terminer":"Gérer le répertoire"; });
+    return p;
+  }
+  function renderPicker(p){ var box=$(p.ids.list); if(!roster.length){ box.innerHTML='<div class="agents-empty">Aucun agent enregistré. Ajoutez-en un ci-dessus.</div>'; return; } box.innerHTML=roster.map(function(a){ var on=p.sel.indexOf(a)>-1; return '<button type="button" class="agent-chip" data-agent="'+esc(a)+'" aria-pressed="'+(on?'true':'false')+'"><span class="tick">✓</span>'+esc(a)+'<span class="rm">✕</span></button>'; }).join(""); }
+  function renderAllPickers(){ pickers.forEach(renderPicker); }
+
+  function bindLT(ids){
+    var lEl=$(ids.ligne), laEl=$(ids.ligneAutre), tEl=$(ids.troncon), taEl=$(ids.tronconAutre);
+    LIGNES.forEach(function(l){ var o=document.createElement("option"); o.value=l.nom; o.textContent=l.nom; lEl.appendChild(o); });
+    var oa=document.createElement("option"); oa.value="__autre__"; oa.textContent="Autre ligne…"; lEl.appendChild(oa);
+    function fillT(nom, keep){ if(!nom || nom==="__autre__"){ tEl.innerHTML='<option value="">— Choisir d\'abord une ligne —</option>'; tEl.disabled=true; return; } tEl.disabled=false; tEl.innerHTML='<option value="">— Choisir un tronçon —</option>'; troncons(nom).forEach(function(t){ var o=document.createElement("option"); o.value=t; o.textContent=t; tEl.appendChild(o); }); var o2=document.createElement("option"); o2.value="__autre__"; o2.textContent="Autre tronçon…"; tEl.appendChild(o2); if(keep) tEl.value=keep; }
+    lEl.addEventListener("change", function(){ var v=lEl.value; laEl.style.display=v==="__autre__"?"block":"none"; if(v==="__autre__"){ fillT("__autre__"); taEl.style.display="block"; } else { fillT(v); taEl.style.display="none"; taEl.value=""; } });
+    tEl.addEventListener("change", function(){ taEl.style.display=tEl.value==="__autre__"?"block":"none"; });
+    fillT("");
+    return {
+      get:function(){ var lv=lEl.value==="__autre__"?laEl.value.trim():lEl.value; var tv=(lEl.value==="__autre__"||tEl.value==="__autre__")?taEl.value.trim():tEl.value; return {ligne:lv, troncon:tv}; },
+      set:function(ligne, troncon){ var known=false; for(var i=0;i<LIGNES.length;i++){ if(LIGNES[i].nom===ligne){ known=true; break; } } if(known){ lEl.value=ligne; laEl.style.display="none"; laEl.value=""; var kt=troncons(ligne).indexOf(troncon)>-1; fillT(ligne, kt?troncon:"__autre__"); if(kt){ taEl.style.display="none"; taEl.value=""; } else { tEl.value="__autre__"; taEl.style.display="block"; taEl.value=troncon; } } else { lEl.value="__autre__"; laEl.style.display="block"; laEl.value=ligne; fillT("__autre__"); taEl.style.display="block"; taEl.value=troncon; } },
+      reset:function(){ lEl.value=""; laEl.style.display="none"; laEl.value=""; fillT(""); taEl.style.display="none"; taEl.value=""; }
+    };
+  }
+
+  // ---- Moteur générique : planification (à faire) puis relevé (fait) ----
+  function createApp(cfg){
+    var records=[], editId=null, mode="plan";
+    cfg.unit = cfg.unit || "point";
+    cfg.emptyMsg = cfg.emptyMsg || "Rien pour le moment.<br>Ajoutez des éléments ci-dessus.";
+    cfg.completeBtn = cfg.completeBtn || "Saisir le relevé";
+    cfg.cloudId = cfg.cloudId || cfg.key.replace(/[^a-z0-9]/gi,"_");
+    var lt=bindLT(cfg.lt); var picker=makePicker(cfg.picker);
+
+    function writeRecords(){ dbSave(cfg.key, cfg.cloudId, "records", records); }
+    function applyRemote(arr){
+      if(!Array.isArray(arr)) arr=[];
+      if(editId){ var cur=null; for(var i=0;i<records.length;i++){ if(records[i].id===editId){ cur=records[i]; break; } }
+        if(cur){ var seen=false; arr=arr.map(function(r){ if(r.id===editId){ seen=true; return cur; } return r; }); if(!seen) arr.push(cur); } }
+      records=arr; render();
+    }
+
+    function setMode(m){
+      mode=m;
+      $(cfg.complete).style.display = (m==="complete") ? "grid" : "none";
+      $(cfg.formhead).textContent = (m==="complete") ? "Renseigner le relevé" : (editId ? "Modifier le point" : "Nouveau point à faire");
+      if(m==="complete"){ $(cfg.submit).textContent=cfg.completeLabel; $(cfg.cancel).style.display="flex"; }
+      else { $(cfg.submit).textContent = editId ? "✓ Mettre à jour le point" : cfg.planLabel; $(cfg.cancel).style.display = editId ? "flex" : "none"; }
+    }
+    function fullReset(){
+      $(cfg.form).reset(); lt.reset(); cfg.locReset(); cfg.compReset();
+      picker.sel=[]; if(picker.managing){ picker.managing=false; $(cfg.picker.wrap).classList.remove("managing"); $(cfg.picker.manage).textContent="Gérer le répertoire"; } renderAllPickers();
+      $(cfg.date).value=todayISO(); if($(cfg.anneeInput)) $(cfg.anneeInput).value=todayISO().slice(0,4); editId=null; $(cfg.err).textContent=""; setMode("plan");
+    }
+    function afterAdd(){ cfg.pkReset(); cfg.locReset(); editId=null; $(cfg.err).textContent=""; setMode("plan"); if(cfg.pkFocus) cfg.pkFocus(); }
+    $(cfg.cancel).addEventListener("click", fullReset);
+
+    function collectLoc(){ var b=lt.get(); var rec={ ligne:b.ligne, troncon:b.troncon, annee:($(cfg.anneeInput)?$(cfg.anneeInput).value:"")||"" }; var pk=cfg.pkCollect(); for(var kp in pk){ if(pk.hasOwnProperty(kp)) rec[kp]=pk[kp]; } var ex=cfg.locCollect(); for(var k in ex){ if(ex.hasOwnProperty(k)) rec[k]=ex[k]; } return rec; }
+    function recYear(r){ return r.annee ? String(r.annee) : (r.dateISO ? r.dateISO.slice(0,4) : "—"); }
+    function yval(r){ var y=recYear(r); return y==="—"?99999:parseInt(y,10); }
+    function gkey(r){ return cfg.groupKey?cfg.groupKey(r):yval(r); }
+    function glabel(r){ return cfg.groupLabel?cfg.groupLabel(r):recYear(r); }
+    function locMissing(rec){ var m=[]; if(!rec.ligne) m.push("ligne"); if(!rec.troncon) m.push("tronçon"); m=m.concat(cfg.pkValidate(rec)); return m.concat(cfg.locValidate(rec)); }
+    function fail(msg){ $(cfg.err).textContent=msg; toast(msg); if($(cfg.err).scrollIntoView) $(cfg.err).scrollIntoView({behavior:"smooth",block:"center"}); }
+
+    $(cfg.form).addEventListener("submit", function(e){
+      e.preventDefault();
+      if(mode==="plan"){
+        var loc=collectLoc(); var miss=locMissing(loc);
+        if(miss.length){ fail("À compléter : "+miss.join(", ")+"."); return; }
+        if(editId){ var ix=idx(editId); if(ix>-1){ for(var k in loc){ if(loc.hasOwnProperty(k)) records[ix][k]=loc[k]; } if(cfg.afterEditLoc) cfg.afterEditLoc(records[ix]); } writeRecords(); toast("Point mis à jour"); fullReset(); render(); }
+        else { var rec=loc; rec.status="todo"; rec.dateISO=""; rec.agents=""; var ec=cfg.compEmpty(); for(var k2 in ec){ if(ec.hasOwnProperty(k2)) rec[k2]=ec[k2]; } rec.id="r"+Date.now()+Math.random().toString(36).slice(2,6); rec.createdAt=Date.now(); if(cfg.afterCreate) cfg.afterCreate(rec); records.push(rec); writeRecords(); toast("Point ajouté à la liste"); afterAdd(); render(); }
+        return;
+      }
+      // mode complete
+      var pend=$(cfg.picker.nw).value.trim(); if(pend){ addAgentToRoster(pend); if(picker.sel.indexOf(pend)<0) picker.sel.push(pend); $(cfg.picker.nw).value=""; renderAllPickers(); }
+      var loc2=collectLoc(); var miss2=locMissing(loc2);
+      var dateV=$(cfg.date).value; var agentsV=picker.sel.join(", ");
+      if(!dateV) miss2.push("date"); if(!agentsV) miss2.push("agent(s)");
+      miss2=miss2.concat(cfg.compValidate());
+      if(miss2.length){ fail("À compléter : "+miss2.join(", ")+"."); return; }
+      var block=cfg.compBlock?cfg.compBlock():null; if(block){ fail(block); return; }
+      var ix2=idx(editId); if(ix2<0){ fullReset(); render(); return; }
+      var r=records[ix2];
+      for(var k3 in loc2){ if(loc2.hasOwnProperty(k3)) r[k3]=loc2[k3]; }
+      r.dateISO=dateV; r.agents=agentsV; var comp=cfg.compCollect(); for(var k4 in comp){ if(comp.hasOwnProperty(k4)) r[k4]=comp[k4]; }
+      r.status="done"; writeRecords(); toast("Relevé validé"); fullReset(); render();
+    });
+
+    function idx(id){ for(var i=0;i<records.length;i++){ if(records[i].id===id) return i; } return -1; }
+
+    function sorted(){
+      var arr=records.slice();
+      arr.sort(function(a,b){ return (gkey(a)-gkey(b))||(a.ligne||"").localeCompare(b.ligne||"",'fr')||(a.troncon||"").localeCompare(b.troncon||"",'fr')||(cfg.sortKey(a)-cfg.sortKey(b)); });
+      var st=$(cfg.status).value; if(st==="todo") arr=arr.filter(function(r){ return r.status!=="done"; }); else if(st==="done") arr=arr.filter(function(r){ return r.status==="done"; });
+      var yf=$(cfg.yearFilter)?$(cfg.yearFilter).value:""; if(yf) arr=arr.filter(function(r){ return recYear(r)===yf; });
+      var fl=$(cfg.filter).value; if(fl) arr=arr.filter(function(r){ return r.ligne===fl; });
+      var q=$(cfg.search).value.trim().toLowerCase(); if(q) arr=arr.filter(function(r){ return cfg.searchText(r).toLowerCase().indexOf(q)>-1; });
+      return arr;
+    }
+    function fillFilters(){
+      var sel=$(cfg.filter); var cur=sel.value; var lignes=[]; records.forEach(function(r){ if(r.ligne && lignes.indexOf(r.ligne)<0) lignes.push(r.ligne); }); lignes.sort(function(a,b){ return a.localeCompare(b,'fr'); }); sel.innerHTML='<option value="">Toutes lignes</option>'+lignes.map(function(l){ return '<option value="'+esc(l)+'">'+esc(l)+'</option>'; }).join(""); if(lignes.indexOf(cur)>-1) sel.value=cur;
+      var ys=$(cfg.yearFilter); if(ys){ var yc=ys.value; var years=[]; records.forEach(function(r){ var y=recYear(r); if(years.indexOf(y)<0) years.push(y); }); years.sort(function(a,b){ return (a==="—"?99999:parseInt(a,10))-(b==="—"?99999:parseInt(b,10)); }); ys.innerHTML='<option value="">Toutes années</option>'+years.map(function(y){ return '<option value="'+esc(y)+'">'+(y==="—"?"Sans année":esc(y))+'</option>'; }).join(""); if(years.indexOf(yc)>-1) ys.value=yc; }
+    }
+    function fillYearSelect(){ var el=$(cfg.anneeInput); if(!el) return; var cy=parseInt(todayISO().slice(0,4),10); var o=""; for(var y=cy-2;y<=cy+6;y++){ o+='<option value="'+y+'">'+y+'</option>'; } el.innerHTML=o; el.value=String(cy); }
+
+    function render(){
+      fillFilters();
+      var n=records.length, td=0; records.forEach(function(r){ if(r.status!=="done") td++; });
+      $(cfg.count).textContent = n+" "+cfg.unit+(n>1?"s":"")+(td?" · "+td+" à faire":"");
+      var arr=sorted(); var list=$(cfg.list);
+      if(!arr.length){ list.innerHTML='<div class="empty">'+(n?"Aucun élément ne correspond au filtre.":cfg.emptyMsg)+'</div>'; return; }
+      var html="", lastY=null;
+      arr.forEach(function(r){
+        var y=glabel(r); if(y!==lastY){ html+='<div class="year-head">'+(y==="—"?"Sans date":esc(y))+'</div>'; lastY=y; }
+        var todo=r.status!=="done"; var ac=todo?"todo":cfg.accentDone(r);
+        var right = todo ? '<span class="chip todo">À faire</span>' : cfg.topRightDone(r);
+        var actions = todo
+          ? '<button class="mini prim" data-complete="'+r.id+'">'+cfg.completeBtn+'</button><button class="mini" data-editloc="'+r.id+'">Modifier</button><button class="mini del" data-del="'+r.id+'">Supprimer</button>'
+          : '<button class="mini" data-complete="'+r.id+'">Modifier</button><button class="mini del" data-del="'+r.id+'">Supprimer</button>';
+        html += '<div class="entry'+(ac?" "+ac:"")+'"><div class="entry-top"><span class="plaque mono"><span class="lab">PK</span>'+esc(cfg.plaque(r))+'</span>'+right+'</div>'+(todo?cfg.bodyTodo(r):cfg.bodyDone(r))+'<div class="entry-actions">'+actions+'</div></div>';
+      });
+      list.innerHTML=html;
+    }
+
+    $(cfg.list).addEventListener("click", function(e){
+      var c=e.target.closest("[data-complete]"), el=e.target.closest("[data-editloc]"), dl=e.target.closest("[data-del]");
+      if(c) startComplete(c.getAttribute("data-complete"));
+      else if(el) startEditLoc(el.getAttribute("data-editloc"));
+      else if(dl && confirm("Supprimer ce point ?")){ var id=dl.getAttribute("data-del"); records=records.filter(function(r){ return r.id!==id; }); writeRecords(); render(); toast("Point supprimé"); }
+    });
+
+    function startComplete(id){
+      var ix=idx(id); if(ix<0) return; var r=records[ix]; editId=id;
+      lt.set(r.ligne, r.troncon); if($(cfg.anneeInput)&&r.annee) $(cfg.anneeInput).value=r.annee; cfg.pkFill(r); cfg.locFill(r);
+      $(cfg.date).value = r.dateISO || todayISO();
+      picker.sel=(r.agents||"").split(",").map(function(s){ return s.trim(); }).filter(Boolean);
+      picker.sel.forEach(function(a){ if(roster.indexOf(a)<0) roster.push(a); }); roster.sort(function(a,b){ return a.localeCompare(b,'fr'); }); saveRoster(); renderAllPickers();
+      cfg.compFill(r); setMode("complete"); if(window.scrollTo) window.scrollTo({top:0,behavior:"smooth"});
+    }
+    function startEditLoc(id){
+      var ix=idx(id); if(ix<0) return; var r=records[ix]; editId=id;
+      lt.set(r.ligne, r.troncon); if($(cfg.anneeInput)&&r.annee) $(cfg.anneeInput).value=r.annee; cfg.pkFill(r); cfg.locFill(r);
+      setMode("plan"); if(window.scrollTo) window.scrollTo({top:0,behavior:"smooth"});
+    }
+
+    $(cfg.search).addEventListener("input", render);
+    if($(cfg.yearFilter)) $(cfg.yearFilter).addEventListener("change", render);
+    $(cfg.filter).addEventListener("change", render);
+    $(cfg.status).addEventListener("change", render);
+
+    function rowsForExport(){ var head=cfg.columns.map(function(c){ return c[0]; }); var body=sorted().map(function(r){ return cfg.columns.map(function(c){ return c[1](r); }); }); return {head:head, body:body}; }
+    function stamp(){ return todayISO().replace(/-/g,""); }
+    $(cfg.exportXlsx).addEventListener("click", function(){ if(!records.length){ toast("Aucun "+cfg.unit+" à exporter"); return; } var dd=rowsForExport(); if(typeof XLSX==="undefined"){ exportCsv(); toast("Excel indisponible hors-ligne → CSV généré"); return; } var ws=styledSheet(dd.head, dd.body, cfg.sheet+" — export du "+frDate(todayISO()), cfg.colWidths); var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, cfg.sheet); XLSX.writeFile(wb, cfg.fileBase+"_"+stamp()+".xlsx"); toast("Fichier Excel généré"); });
+    function exportCsv(){ var dd=rowsForExport(); var sep=";"; function cell(v){ v=String(v==null?"":v); return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; } var lines=[dd.head].concat(dd.body).map(function(row){ return row.map(cell).join(sep); }); var csv="\uFEFF"+lines.join("\r\n"); var blob=new Blob([csv],{type:"text/csv;charset=utf-8;"}); var url=URL.createObjectURL(blob); var a=document.createElement("a"); a.href=url; a.download=cfg.fileBase+"_"+stamp()+".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(url); },1500); }
+    $(cfg.exportCsv).addEventListener("click", function(){ if(!records.length){ toast("Aucun point à exporter"); return; } exportCsv(); toast("Fichier CSV généré"); });
+
+    fillYearSelect();
+    if(cfg.bind) cfg.bind({ save:writeRecords, find:function(id){ var i=idx(id); return i>-1?records[i]:null; }, rerender:render, add:function(rec){ rec.id="r"+Date.now()+Math.random().toString(36).slice(2,6); rec.createdAt=Date.now(); records.push(rec); writeRecords(); render(); }, list:function(){ return records; } });
+    $(cfg.date).value=todayISO(); cfg.compReset();
+    dbSubscribe(cfg.key, cfg.cloudId, "records", applyRemote);
+    render();
+    var self={
+      name:cfg.name, viewId:cfg.viewId, render:render,
+      list:function(){ return records; },
+      counts:function(){ return records.length; },
+      countForYear:function(y){ var n=0; records.forEach(function(r){ if(recYear(r)===y) n++; }); return n; },
+      years:function(){ var ys=[]; records.forEach(function(r){ var y=recYear(r); if(y!=="—" && ys.indexOf(y)<0) ys.push(y); }); ys.sort(function(a,b){ return parseInt(b,10)-parseInt(a,10); }); return ys; },
+      openYear:function(y){
+        fullReset();
+        if($(cfg.anneeInput) && y){ var ok=false; Array.prototype.forEach.call($(cfg.anneeInput).options,function(o){ if(o.value===y) ok=true; }); if(ok) $(cfg.anneeInput).value=y; }
+        render();
+        if($(cfg.yearFilter)){ var has=false; Array.prototype.forEach.call($(cfg.yearFilter).options,function(o){ if(o.value===y) has=true; }); $(cfg.yearFilter).value=(y&&has)?y:""; }
+        render();
+      }
+    };
+    APPS[cfg.name]=self;
+    return self;
+  }
+
+  function locBlockHtml(r){ return '<div class="entry-meta"><div class="line1">'+esc(r.ligne)+'</div><div class="sub">'+esc(r.troncon)+'</div></div>'; }
+
+  // ---- BRO ----
+  function broConfig(){
+    var etat="RAS", segEl=$("bro_seg");
+    function updLabel(){ $("bro_commLabel").innerHTML = etat==="Fuite" ? '<span class="req">(obligatoire)</span>' : '(facultatif)'; }
+    function setEtat(v){ etat=(v==="Fuite"?"Fuite":"RAS"); segEl.querySelector(".ras").setAttribute("aria-pressed",etat==="RAS"?"true":"false"); segEl.querySelector(".fuite").setAttribute("aria-pressed",etat==="Fuite"?"true":"false"); updLabel(); }
+    segEl.addEventListener("click", function(e){ var b=e.target.closest("button"); if(!b) return; setEtat(b.dataset.val); });
+    return {
+      key:"outilsvoie.bro.v1", name:"bro", viewId:"bro",
+      form:"bro_form", formhead:"bro_formhead", complete:"bro_complete", err:"bro_err", submit:"bro_submit", cancel:"bro_cancel",
+      list:"bro_list", count:"bro_count", search:"bro_search", anneeInput:"bro_annee", yearFilter:"bro_year", filter:"bro_filter", status:"bro_status",
+      unit:"BRO", completeBtn:"Saisir le relevé", emptyMsg:"Aucun BRO.<br>Planifiez les PK ci-dessus, puis renseignez-les sur le terrain.",
+      pkKm:"bro_pkKm", pkM:"bro_pkM", date:"bro_date",
+      lt:{ligne:"bro_ligne",ligneAutre:"bro_ligneAutre",troncon:"bro_troncon",tronconAutre:"bro_tronconAutre"},
+      picker:{nw:"bro_agentNew",add:"bro_agentAdd",list:"bro_agentsList",manage:"bro_agentsManage",wrap:"bro_agents"},
+      planLabel:"＋ Ajouter à la liste", completeLabel:"✓ Valider le relevé",
+      exportXlsx:"bro_xlsx", exportCsv:"bro_csv", sheet:"Gonflage BRO", fileBase:"gonflage-bro",
+      colWidths:[{wch:7},{wch:9},{wch:12},{wch:24},{wch:22},{wch:11},{wch:12},{wch:24},{wch:9},{wch:40}],
+      columns:[ ["Année",function(r){return r.annee||(r.dateISO?r.dateISO.slice(0,4):"");}], ["Statut",function(r){return r.status==="done"?"Fait":"À faire";}], ["Date",function(r){return frDate(r.dateISO);}], ["Ligne",function(r){return r.ligne;}], ["Tronçon",function(r){return r.troncon;}], ["PK",function(r){return pkString(r.pkKm,r.pkM);}], ["N° joint",function(r){return r.joint||"";}], ["Agent(s)",function(r){return r.agents||"";}], ["État",function(r){return r.etat||"";}], ["Commentaire",function(r){return r.commentaire||"";}] ],
+      searchText:function(r){ return [r.ligne,r.troncon,pkString(r.pkKm,r.pkM),r.joint,r.agents,r.etat,r.commentaire,frDate(r.dateISO),(r.status==="done"?"fait":"à faire")].join(" "); },
+      pkCollect:function(){ return { pkKm:$("bro_pkKm").value.replace(/\D/g,""), pkM:pad3($("bro_pkM").value) }; },
+      pkValidate:function(rec){ return rec.pkKm?[]:["PK"]; },
+      pkFill:function(r){ $("bro_pkKm").value=r.pkKm||""; $("bro_pkM").value=r.pkM||""; },
+      pkReset:function(){ $("bro_pkKm").value=""; $("bro_pkM").value=""; },
+      pkFocus:function(){ if($("bro_pkKm").focus) $("bro_pkKm").focus(); },
+      plaque:function(r){ return pkString(r.pkKm,r.pkM); },
+      sortKey:function(r){ return (parseInt(r.pkKm||0,10)*1000)+parseInt(r.pkM||0,10); },
+      locCollect:function(){ return { joint:$("bro_joint").value.trim() }; },
+      locValidate:function(){ return []; },
+      locFill:function(r){ $("bro_joint").value=r.joint||""; },
+      locReset:function(){ $("bro_joint").value=""; },
+      compEmpty:function(){ return { etat:"", commentaire:"" }; },
+      compCollect:function(){ return { etat:etat, commentaire:$("bro_commentaire").value.trim() }; },
+      compValidate:function(){ return []; },
+      compBlock:function(){ if(etat==="Fuite" && !$("bro_commentaire").value.trim()){ $("bro_commentaire").focus(); return "En cas de fuite, le commentaire est obligatoire."; } return null; },
+      compFill:function(r){ $("bro_commentaire").value=r.commentaire||""; setEtat(r.etat||"RAS"); },
+      compReset:function(){ $("bro_commentaire").value=""; setEtat("RAS"); },
+      accentDone:function(r){ return r.etat==="Fuite"?"fuite":""; },
+      topRightDone:function(r){ var f=r.etat==="Fuite"; return '<span class="chip '+(f?"fuite":"ras")+'">'+esc(r.etat||"RAS")+'</span>'; },
+      bodyTodo:function(r){ var j=r.joint?' · Joint <strong class="mono">'+esc(r.joint)+'</strong>':''; return '<div class="entry-meta"><div class="line1">'+esc(r.ligne)+'</div><div class="sub">'+esc(r.troncon)+j+'</div></div><div class="todo-note">À renseigner : état, agents, date</div>'; },
+      bodyDone:function(r){ var f=r.etat==="Fuite"; var comm=r.commentaire?'<div class="comment'+(f?" fuite":"")+'">'+esc(r.commentaire)+'</div>':''; return '<div class="entry-meta"><div class="line1">'+esc(r.ligne)+'</div><div class="sub">'+esc(r.troncon)+'</div><div class="joint">Joint <strong class="mono">'+esc(r.joint||"—")+'</strong> · '+esc(frDate(r.dateISO))+'</div><div class="sub">Agent(s) : '+esc(r.agents||"—")+'</div></div>'+comm; }
+    };
+  }
+
+  // ---- DÉRIVATION ----
+  var FILS=[ ["f1t","Fil 1 – Terre"],["f2t","Fil 2 – Terre"],["f3t","Fil 3 – Terre"],["f4t","Fil 4 – Terre"], ["f12","Fil 1 – 2"],["f13","Fil 1 – 3"],["f14","Fil 1 – 4"],["f23","Fil 2 – 3"],["f24","Fil 2 – 4"],["f34","Fil 3 – 4"] ];
+  function uLab(u){ return u==="G"?"GΩ":"MΩ"; }
+  function derivConfig(){
+    var units={}; FILS.forEach(function(f){ units[f[0]]="M"; });
+    function setUnit(fil,u){ units[fil]=(u==="G"?"G":"M"); var box=$("dr_fils").querySelector('.unit[data-fil="'+fil+'"]'); if(box){ Array.prototype.forEach.call(box.querySelectorAll("button"), function(b){ b.setAttribute("aria-pressed", b.getAttribute("data-u")===units[fil]?"true":"false"); }); } }
+    $("dr_fils").addEventListener("click", function(e){ var b=e.target.closest(".unit button"); if(!b) return; var fil=b.parentNode.getAttribute("data-fil"); setUnit(fil, b.getAttribute("data-u")); });
+    $("dr_appareilAdd").addEventListener("click", function(){ addAppareil($("dr_appareilNew").value); var n=$("dr_appareilNew").value.trim(); $("dr_appareilNew").value=""; if(n) $("dr_appareil").value=n; });
+    $("dr_appareilNew").addEventListener("keydown", function(e){ if(e.key==="Enter"){ e.preventDefault(); var n=this.value.trim(); addAppareil(n); this.value=""; if(n) $("dr_appareil").value=n; } });
+    $("dr_appareilManage").addEventListener("click", function(){ var l=$("dr_appareilList"); l.style.display=(l.style.display==="none"?"block":"none"); });
+    $("dr_appareilList").addEventListener("click", function(e){ var c=e.target.closest("[data-rm]"); if(!c) return; var n=c.getAttribute("data-rm"); if(confirm("Retirer l'appareil "+n+" de la liste ?")) removeAppareil(n); });
+    var dcols=[ ["Année",function(r){return r.annee||(r.dateISO?r.dateISO.slice(0,4):"");}], ["Statut",function(r){return r.status==="done"?"Fait":"À faire";}], ["Date",function(r){return frDate(r.dateISO);}], ["Ligne",function(r){return r.ligne;}], ["Tronçon",function(r){return r.troncon;}], ["PK",function(r){return pkString(r.pkKm,r.pkM);}], ["Joint",function(r){return r.joint||"";}] ];
+    FILS.forEach(function(f){ dcols.push([ f[1].replace(" – ","-"), function(r){ var v=r[f[0]]||""; return v?(v+" "+uLab(r[f[0]+"_u"]||"M")):""; } ]); });
+    dcols.push(["Longueur câble",function(r){ return r.longueur||""; }]);
+    dcols.push(["Quartz vérifiée",function(r){ return r.quartz||""; }]);
+    dcols.push(["Appareil",function(r){ return r.appareil||""; }]);
+    dcols.push(["Agent(s)",function(r){ return r.agents||""; }]);
+    var widths=[{wch:7},{wch:9},{wch:12},{wch:24},{wch:22},{wch:11},{wch:12}]; FILS.forEach(function(){ widths.push({wch:11}); }); widths.push({wch:14},{wch:13},{wch:16},{wch:24});
+    return {
+      key:"outilsvoie.deriv.v1", name:"deriv", viewId:"deriv",
+      form:"dr_form", formhead:"dr_formhead", complete:"dr_complete", err:"dr_err", submit:"dr_submit", cancel:"dr_cancel",
+      list:"dr_list", count:"dr_count", search:"dr_search", anneeInput:"dr_annee", yearFilter:"dr_year", filter:"dr_filter", status:"dr_status",
+      unit:"point", completeBtn:"Saisir les mesures", emptyMsg:"Aucun point.<br>Planifiez les PK ci-dessus, puis relevez-les sur le terrain.",
+      pkKm:"dr_pkKm", pkM:"dr_pkM", date:"dr_date",
+      lt:{ligne:"dr_ligne",ligneAutre:"dr_ligneAutre",troncon:"dr_troncon",tronconAutre:"dr_tronconAutre"},
+      picker:{nw:"dr_agentNew",add:"dr_agentAdd",list:"dr_agentsList",manage:"dr_agentsManage",wrap:"dr_agents"},
+      planLabel:"＋ Ajouter à la liste", completeLabel:"✓ Valider le relevé",
+      exportXlsx:"dr_xlsx", exportCsv:"dr_csv", sheet:"Dérivation", fileBase:"mesures-derivation",
+      colWidths:widths, columns:dcols,
+      searchText:function(r){ var vals=FILS.map(function(f){ return r[f[0]]||""; }); return [r.ligne,r.troncon,pkString(r.pkKm,r.pkM),r.joint,r.appareil,r.agents,frDate(r.dateISO),(r.status==="done"?"fait":"à faire")].concat(vals).join(" "); },
+      pkCollect:function(){ return { pkKm:$("dr_pkKm").value.replace(/\D/g,""), pkM:pad3($("dr_pkM").value) }; },
+      pkValidate:function(rec){ return rec.pkKm?[]:["PK"]; },
+      pkFill:function(r){ $("dr_pkKm").value=r.pkKm||""; $("dr_pkM").value=r.pkM||""; },
+      pkReset:function(){ $("dr_pkKm").value=""; $("dr_pkM").value=""; },
+      pkFocus:function(){ if($("dr_pkKm").focus) $("dr_pkKm").focus(); },
+      plaque:function(r){ return pkString(r.pkKm,r.pkM); },
+      sortKey:function(r){ return (parseInt(r.pkKm||0,10)*1000)+parseInt(r.pkM||0,10); },
+      locCollect:function(){ return { joint:$("dr_joint").value.trim() }; },
+      locValidate:function(){ return []; },
+      locFill:function(r){ $("dr_joint").value=r.joint||""; },
+      locReset:function(){ $("dr_joint").value=""; },
+      compEmpty:function(){ var o={ longueur:"", quartz:"4", appareil:"" }; FILS.forEach(function(f){ o[f[0]]=""; o[f[0]+"_u"]="M"; }); return o; },
+      compCollect:function(){ var o={ longueur:$("dr_longueur").value.trim(), quartz:$("dr_quartz").value, appareil:$("dr_appareil").value }; FILS.forEach(function(f){ o[f[0]]=$("dr_"+f[0]).value.trim(); o[f[0]+"_u"]=units[f[0]]; }); return o; },
+      compValidate:function(){ return []; },
+      compBlock:function(){ return null; },
+      compFill:function(r){ $("dr_longueur").value=r.longueur||""; $("dr_quartz").value=r.quartz||"4"; renderAppareils(); $("dr_appareil").value=(appareils.indexOf(r.appareil)>-1?r.appareil:""); FILS.forEach(function(f){ $("dr_"+f[0]).value=r[f[0]]||""; setUnit(f[0], r[f[0]+"_u"]||"M"); }); },
+      compReset:function(){ $("dr_longueur").value=""; $("dr_quartz").value="4"; if($("dr_appareil")) $("dr_appareil").value=""; FILS.forEach(function(f){ $("dr_"+f[0]).value=""; setUnit(f[0],"M"); }); },
+      accentDone:function(){ return "meas"; },
+      topRightDone:function(r){ var c=0; FILS.forEach(function(f){ if((r[f[0]]||"").length) c++; }); return '<span class="chip meas">'+c+'/'+FILS.length+'</span>'; },
+      bodyTodo:function(r){ var j=r.joint?' · Joint <strong class="mono">'+esc(r.joint)+'</strong>':''; return '<div class="entry-meta"><div class="line1">'+esc(r.ligne)+'</div><div class="sub">'+esc(r.troncon)+j+'</div></div><div class="todo-note">À renseigner : mesures, agents, date</div>'; },
+      bodyDone:function(r){ var rows=FILS.map(function(f){ var v=r[f[0]]||""; var disp=v?esc(v+" "+uLab(r[f[0]+"_u"]||"M")):"—"; return '<div class="mi"><span class="k">'+esc(f[1])+'</span><span class="v'+(v?"":" empty")+'">'+disp+'</span></div>'; }).join(""); var extra=[]; if(r.appareil) extra.push("Appareil "+esc(r.appareil)); extra.push("Quartz "+esc(r.quartz||"4")); if(r.longueur) extra.push("Câble "+esc(r.longueur)); var ex='<div class="sub">'+extra.join(" · ")+'</div>'; return '<div class="entry-meta"><div class="line1">'+esc(r.ligne)+'</div><div class="sub">'+esc(r.troncon)+(r.joint?' · Joint <strong class="mono">'+esc(r.joint)+'</strong>':'')+'</div><div class="sub">'+esc(frDate(r.dateISO))+' · Agent(s) : '+esc(r.agents||"—")+'</div>'+ex+'</div><div class="meas-list">'+rows+'</div>'; }
+    };
+  }
+
+  // ---- MPS : bornes tous les 500 m + points spécifiques sur un intervalle ----
+  var MAX_PTS=600;
+  function mpsConfig(){
+    var api=null, rec=null;   // rec = enregistrement en cours de saisie (édité en direct)
+
+    function pkNum(pk){ var p=String(pk||"").split("+"); return (parseInt(p[0]||0,10)*1000)+parseInt(p[1]||0,10); }
+    function sortPts(r){ (r.points||[]).sort(function(a,b){ return pkNum(a.pk)-pkNum(b.pk); }); }
+    function catOf(p){ if(p.type==="borne") return "borne"; var s=(p.label||"").toLowerCase(); if(s.indexOf("mou")>-1) return "mou"; if(s.indexOf("artère")>-1||s.indexOf("artere")>-1) return "artere"; if(s.indexOf("caniveau")>-1) return "caniveau"; return "autre"; }
+
+    function genBornes(r){
+      var startM=parseInt(r.pkDebKm||0,10)*1000+parseInt(r.pkDebM||0,10);
+      var endM=parseInt(r.pkFinKm||0,10)*1000+parseInt(r.pkFinM||0,10);
+      var existing=r.points||[];
+      var keep={}; existing.forEach(function(p){ if(p.type==="borne") keep[p.pk]=p; });
+      var customs=existing.filter(function(p){ return p.type==="custom"; });
+      var out=[];
+      if(endM>=startM){
+        var first=Math.ceil(startM/500)*500;
+        for(var mm=first; mm<=endM && out.length<MAX_PTS; mm+=500){
+          var km=Math.floor(mm/1000), met=mm-km*1000;
+          var pk=km+"+"+String(met).padStart(3,"0");
+          out.push(keep[pk] || { pk:pk, type:"borne", label:"Borne", status:"", comment:"" });
+        }
+      }
+      r.points=out.concat(customs); sortPts(r);
+    }
+    var saveT=null;
+    function persist(){ if(!(rec && api)) return; clearTimeout(saveT); saveT=setTimeout(function(){ if(api) api.save(); }, 500); }
+
+    function progressTxt(r){ var pts=r.points||[]; var done=0; pts.forEach(function(p){ if(p.status) done++; }); return done+" / "+pts.length+" vérifiés"; }
+    function renderPoints(){
+      var box=$("mp_points"); var pts=rec?rec.points:[];
+      if(!pts || !pts.length){ box.innerHTML='<div class="ano-empty" style="padding:10px">Aucune borne générée (vérifiez l\'intervalle).</div>'; $("mp_progress").textContent="0 / 0 vérifiés"; return; }
+      box.innerHTML=pts.map(function(p,i){
+        var cls=p.status==="OK"?"ok":(p.status==="KO"?"ko":"");
+        var lab=p.type==="custom"?esc(p.label||"Point"):"Borne";
+        var rm=p.type==="custom"?'<button type="button" class="pt-rm" data-rm="'+i+'">✕</button>':"";
+        return '<div class="pt '+cls+'" data-i="'+i+'"><div class="pt-top"><span class="apk">'+esc(p.pk)+'</span><span class="ptlab '+catOf(p)+'">'+lab+'</span><button type="button" class="okbtn" data-ok="'+i+'">OK</button>'+rm+'</div><input class="ptcom" data-com="'+i+'" placeholder="Commentaire si problème (ex : mou à rechercher)" value="'+esc(p.comment||"")+'"></div>';
+      }).join("");
+      $("mp_progress").textContent=progressTxt(rec);
+    }
+    $("mp_points").addEventListener("click", function(e){
+      var ok=e.target.closest("[data-ok]"), rm=e.target.closest("[data-rm]");
+      if(ok){ var i=parseInt(ok.getAttribute("data-ok"),10); var p=rec.points[i]; p.status=(p.status==="OK")?"":"OK"; if(p.status==="OK") p.comment=""; persist(); renderPoints(); }
+      else if(rm){ var j=parseInt(rm.getAttribute("data-rm"),10); rec.points.splice(j,1); persist(); renderPoints(); }
+    });
+    $("mp_points").addEventListener("input", function(e){
+      var c=e.target.closest("[data-com]"); if(!c) return; var i=parseInt(c.getAttribute("data-com"),10); var p=rec.points[i];
+      p.comment=c.value; p.status=c.value.trim()?"KO":""; var row=c.closest(".pt"); if(row){ row.classList.remove("ok"); row.classList.toggle("ko", !!c.value.trim()); } $("mp_progress").textContent=progressTxt(rec); persist();
+    });
+    function addPoint(){ if(!rec) return; var km=$("mp_addKm").value.replace(/\D/g,""); var note=$("mp_addNote").value.trim(); if(!km || !note){ toast("Point : indiquez un PK et un libellé"); return; } rec.points.push({ pk:pkString(km,$("mp_addM").value), type:"custom", label:note, status:"", comment:"" }); sortPts(rec); $("mp_addKm").value=""; $("mp_addM").value=""; $("mp_addNote").value=""; persist(); renderPoints(); }
+    $("mp_addBtn").addEventListener("click", addPoint);
+    $("mp_addNote").addEventListener("keydown", function(e){ if(e.key==="Enter"){ e.preventDefault(); addPoint(); } });
+    $("mp_quick").addEventListener("click", function(e){ var b=e.target.closest(".qbtn"); if(!b) return; $("mp_addNote").value=b.textContent; $("mp_addNote").focus&&$("mp_addNote").focus(); });
+
+    function counts(r){ var pts=r.points||[]; var total=pts.length, done=0, ko=0; pts.forEach(function(p){ if(p.status) done++; if(p.status==="KO") ko++; }); return {total:total, done:done, ko:ko}; }
+    function ptDetail(r){ return (r.points||[]).map(function(p){ var t=p.type==="custom"?(p.label+" "):""; if(p.status==="OK") return p.pk+" "+t+"OK"; if(p.status==="KO") return p.pk+" "+t+"KO"+(p.comment?(" - "+p.comment):""); return p.pk+" "+t+"(non vérifié)"; }).join(" | "); }
+
+    return {
+      key:"outilsvoie.mps.v1", name:"mps", viewId:"mps",
+      form:"mp_form", formhead:"mp_formhead", complete:"mp_complete", err:"mp_err", submit:"mp_submit", cancel:"mp_cancel",
+      list:"mp_list", count:"mp_count", search:"mp_search", anneeInput:"mp_annee", yearFilter:"mp_year", filter:"mp_filter", status:"mp_status", date:"mp_date",
+      unit:"tournée", completeBtn:"Saisir le relevé", emptyMsg:"Aucune tournée.<br>Définissez un intervalle ci-dessus.",
+      lt:{ligne:"mp_ligne",ligneAutre:"mp_ligneAutre",troncon:"mp_troncon",tronconAutre:"mp_tronconAutre"},
+      picker:{nw:"mp_agentNew",add:"mp_agentAdd",list:"mp_agentsList",manage:"mp_agentsManage",wrap:"mp_agents"},
+      planLabel:"＋ Ajouter à la liste", completeLabel:"✓ Valider la tournée",
+      exportXlsx:"mp_xlsx", exportCsv:"mp_csv", sheet:"MPS", fileBase:"mps",
+      colWidths:[{wch:7},{wch:9},{wch:12},{wch:24},{wch:22},{wch:11},{wch:11},{wch:8},{wch:9},{wch:70},{wch:24}],
+      columns:[ ["Année",function(r){return r.annee||(r.dateISO?r.dateISO.slice(0,4):"");}], ["Statut",function(r){return r.status==="done"?"Fait":"À faire";}], ["Date",function(r){return frDate(r.dateISO);}], ["Ligne",function(r){return r.ligne;}], ["Tronçon",function(r){return r.troncon;}], ["PK début",function(r){return pkString(r.pkDebKm,r.pkDebM);}], ["PK fin",function(r){return pkString(r.pkFinKm,r.pkFinM);}], ["Nb points",function(r){return (r.points||[]).length;}], ["Vérifiés",function(r){var c=counts(r);return c.done+"/"+c.total;}], ["Détail points",function(r){return ptDetail(r);}], ["Agent(s)",function(r){return r.agents||"";}] ],
+      searchText:function(r){ var pt=(r.points||[]).map(function(p){return p.pk+" "+(p.label||"")+" "+(p.comment||"");}).join(" "); return [r.ligne,r.troncon,pkString(r.pkDebKm,r.pkDebM),pkString(r.pkFinKm,r.pkFinM),r.agents,frDate(r.dateISO),pt,(r.status==="done"?"fait":"à faire")].join(" "); },
+      bind:function(a){ api=a; },
+      afterCreate:function(r){ r.points=[]; genBornes(r); },
+      afterEditLoc:function(r){ genBornes(r); },
+      pkCollect:function(){ return { pkDebKm:$("mp_pkDebKm").value.replace(/\D/g,""), pkDebM:pad3($("mp_pkDebM").value), pkFinKm:$("mp_pkFinKm").value.replace(/\D/g,""), pkFinM:pad3($("mp_pkFinM").value) }; },
+      pkValidate:function(r){ var m=[]; if(!r.pkDebKm) m.push("PK début"); if(!r.pkFinKm) m.push("PK fin"); return m; },
+      pkFill:function(r){ $("mp_pkDebKm").value=r.pkDebKm||""; $("mp_pkDebM").value=r.pkDebM||""; $("mp_pkFinKm").value=r.pkFinKm||""; $("mp_pkFinM").value=r.pkFinM||""; },
+      pkReset:function(){ ["mp_pkDebKm","mp_pkDebM","mp_pkFinKm","mp_pkFinM"].forEach(function(id){ $(id).value=""; }); },
+      pkFocus:function(){ if($("mp_pkDebKm").focus) $("mp_pkDebKm").focus(); },
+      plaque:function(r){ return pkString(r.pkDebKm,r.pkDebM)+" → "+pkString(r.pkFinKm,r.pkFinM); },
+      sortKey:function(r){ return (parseInt(r.pkDebKm||0,10)*1000)+parseInt(r.pkDebM||0,10); },
+      locCollect:function(){ return {}; }, locValidate:function(){ return []; }, locFill:function(){}, locReset:function(){},
+      compEmpty:function(){ return { points:[] }; },
+      compCollect:function(){ return {}; },
+      compValidate:function(){ return []; },
+      compBlock:function(){ return null; },
+      compFill:function(r){ rec=(api?api.find(r.id):null)||r; $("mp_addKm").value=""; $("mp_addM").value=""; $("mp_addNote").value=""; renderPoints(); },
+      compReset:function(){ rec=null; $("mp_addKm").value=""; $("mp_addM").value=""; $("mp_addNote").value=""; if($("mp_points")) $("mp_points").innerHTML=""; if($("mp_progress")) $("mp_progress").textContent="0 / 0 vérifiés"; },
+      accentDone:function(r){ return counts(r).ko>0?"todo":""; },
+      topRightDone:function(r){ var c=counts(r); if(c.ko>0) return '<span class="chip todo">'+c.ko+' à voir</span>'; return '<span class="chip ras">OK</span>'; },
+      bodyTodo:function(r){ var n=(r.points||[]).length; return '<div class="entry-meta"><div class="line1">'+esc(r.ligne)+'</div><div class="sub">'+esc(r.troncon)+'</div></div><div class="todo-note">'+n+' point'+(n>1?"s":"")+' à vérifier (bornes + points spécifiques)</div>'; },
+      bodyDone:function(r){ var c=counts(r); var probs=(r.points||[]).filter(function(p){ return p.status==="KO"; }); var pHtml = probs.length ? '<div class="ano-done">'+probs.map(function(p){ var lab=p.type==="custom"?'<span class="ptlab '+catOf(p)+'" style="font-size:13.5px">'+esc(p.label)+'</span> — ':""; return '<div class="ad"><span class="p">'+esc(p.pk)+'</span><span>'+lab+esc(p.comment||"borne absente")+'</span></div>'; }).join("")+'</div>' : ''; return '<div class="entry-meta"><div class="line1">'+esc(r.ligne)+'</div><div class="sub">'+esc(r.troncon)+'</div><div class="sub">'+esc(frDate(r.dateISO))+' · Agent(s) : '+esc(r.agents||"—")+'</div><div class="sub">Vérifiés : '+c.done+"/"+c.total+'</div></div>'+pHtml; }
+    };
+  }
+
+  // ---- MPC : reprise programmée (année suivante) des défauts MPS ----
+  function mpcConfig(){
+    var api=null;
+    function colorOf(txt){ var s=(txt||"").toLowerCase(); if(s.indexOf("mou")>-1) return "mou"; if(s.indexOf("artère")>-1||s.indexOf("artere")>-1) return "artere"; if(s.indexOf("caniveau")>-1) return "caniveau"; if(s.indexOf("borne")>-1) return "borne"; return "autre"; }
+    function importMps(){
+      if(!api) return;
+      var mps=[]; if(APPS["mps"]) mps=APPS["mps"].list(); else { try{ mps=JSON.parse(localStorage.getItem("outilsvoie.mps.v1"))||[]; }catch(e){ mps=[]; } }
+      var have={}; api.list().forEach(function(r){ if(r.srcKey) have[r.srcKey]=true; });
+      var cy=parseInt(todayISO().slice(0,4),10); var added=0;
+      mps.forEach(function(t){
+        var sd=t.dateISO||""; var yr = sd ? sd.slice(0,4) : (t.annee?String(t.annee):String(cy)); var mo = sd ? sd.slice(5,7) : ""; var mois = mo ? (mo+"/"+yr) : yr;
+        (t.points||[]).forEach(function(p){
+          if(p.status!=="KO") return;
+          var base = p.type==="custom" ? (p.label||"Point") : "Borne absente";
+          var prob = base + (p.comment?(" — "+p.comment):"");
+          var srcKey = (t.id||"")+"|"+p.pk+"|"+(p.label||"borne")+"|"+(p.comment||"");
+          if(have[srcKey]) return;
+          var pp=String(p.pk||"").split("+");
+          api.add({ annee:yr, mois:mois, ligne:t.ligne, troncon:t.troncon, pkKm:(pp[0]||"").replace(/\D/g,""), pkM:pad3(pp[1]||""), probleme:prob, srcKey:srcKey, status:"todo", dateISO:"", agents:"", commentaire:"" });
+          have[srcKey]=true; added++;
+        });
+      });
+      toast(added ? (added+" défaut"+(added>1?"s":"")+" importé"+(added>1?"s":"")) : "Aucun nouveau défaut MPS à importer");
+    }
+    $("mc_import").addEventListener("click", importMps);
+    return {
+      key:"outilsvoie.mpc.v1", name:"mpc", viewId:"mpc",
+      form:"mc_form", formhead:"mc_formhead", complete:"mc_complete", err:"mc_err", submit:"mc_submit", cancel:"mc_cancel",
+      list:"mc_list", count:"mc_count", search:"mc_search", anneeInput:"mc_annee", yearFilter:"mc_year", filter:"mc_filter", status:"mc_status", date:"mc_date",
+      lt:{ligne:"mc_ligne",ligneAutre:"mc_ligneAutre",troncon:"mc_troncon",tronconAutre:"mc_tronconAutre"},
+      picker:{nw:"mc_agentNew",add:"mc_agentAdd",list:"mc_agentsList",manage:"mc_agentsManage",wrap:"mc_agents"},
+      planLabel:"＋ Ajouter à la liste", completeLabel:"✓ Marquer réalisé",
+      unit:"action", completeBtn:"Marquer réalisé", emptyMsg:"Aucune action.<br>Importez les défauts MPS ou ajoutez-en une ci-dessus.",
+      exportXlsx:"mc_xlsx", exportCsv:"mc_csv", sheet:"MPC", fileBase:"mpc",
+      colWidths:[{wch:7},{wch:9},{wch:9},{wch:12},{wch:24},{wch:22},{wch:11},{wch:34},{wch:30},{wch:24}],
+      columns:[ ["Année",function(r){return r.annee||"";}], ["Mois",function(r){return r.mois||"";}], ["Statut",function(r){return r.status==="done"?"Fait":"À faire";}], ["Date",function(r){return frDate(r.dateISO);}], ["Ligne",function(r){return r.ligne;}], ["Tronçon",function(r){return r.troncon;}], ["PK",function(r){return pkString(r.pkKm,r.pkM);}], ["Problème",function(r){return r.probleme||"";}], ["Commentaire",function(r){return r.commentaire||"";}], ["Agent(s)",function(r){return r.agents||"";}] ],
+      searchText:function(r){ return [r.annee,r.mois,r.ligne,r.troncon,pkString(r.pkKm,r.pkM),r.probleme,r.commentaire,r.agents,frDate(r.dateISO),(r.status==="done"?"fait":"à faire")].join(" "); },
+      groupKey:function(r){ var m=r.mois||""; var yy=m.length>=7?parseInt(m.slice(3),10):(parseInt(r.annee,10)||99999); var mm=m.length>=2?parseInt(m.slice(0,2),10):0; return yy*100+mm; },
+      groupLabel:function(r){ return r.mois || r.annee || "—"; },
+      bind:function(a){ api=a; },
+      pkCollect:function(){ return { pkKm:$("mc_pkKm").value.replace(/\D/g,""), pkM:pad3($("mc_pkM").value) }; },
+      pkValidate:function(r){ return r.pkKm?[]:["PK"]; },
+      pkFill:function(r){ $("mc_pkKm").value=r.pkKm||""; $("mc_pkM").value=r.pkM||""; },
+      pkReset:function(){ $("mc_pkKm").value=""; $("mc_pkM").value=""; },
+      pkFocus:function(){ if($("mc_pkKm").focus) $("mc_pkKm").focus(); },
+      plaque:function(r){ return pkString(r.pkKm,r.pkM); },
+      sortKey:function(r){ return (parseInt(r.pkKm||0,10)*1000)+parseInt(r.pkM||0,10); },
+      locCollect:function(){ return { probleme:$("mc_probleme").value.trim(), mois:$("mc_mois").value+"/"+$("mc_annee").value }; },
+      locValidate:function(r){ return r.probleme?[]:["problème"]; },
+      locFill:function(r){ $("mc_probleme").value=r.probleme||""; $("mc_mois").value=(r.mois&&r.mois.length>=2)?r.mois.slice(0,2):todayISO().slice(5,7); },
+      locReset:function(){ $("mc_probleme").value=""; $("mc_mois").value=todayISO().slice(5,7); },
+      compEmpty:function(){ return { commentaire:"" }; },
+      compCollect:function(){ return { commentaire:$("mc_commentaire").value.trim() }; },
+      compValidate:function(){ return []; },
+      compBlock:function(){ return null; },
+      compFill:function(r){ $("mc_commentaire").value=r.commentaire||""; },
+      compReset:function(){ $("mc_commentaire").value=""; },
+      accentDone:function(){ return ""; },
+      topRightDone:function(){ return '<span class="chip ras">Réalisé</span>'; },
+      bodyTodo:function(r){ return '<div class="entry-meta"><div class="line1">'+esc(r.ligne)+'</div><div class="sub">'+esc(r.troncon)+'</div><div class="sub"><span class="ptlab '+colorOf(r.probleme)+'" style="font-size:13.5px">'+esc(r.probleme||"")+'</span></div></div><div class="todo-note">À reprendre — agents, date</div>'; },
+      bodyDone:function(r){ var comm=r.commentaire?'<div class="comment">'+esc(r.commentaire)+'</div>':''; return '<div class="entry-meta"><div class="line1">'+esc(r.ligne)+'</div><div class="sub">'+esc(r.troncon)+'</div><div class="sub"><span class="ptlab '+colorOf(r.probleme)+'" style="font-size:13.5px">'+esc(r.probleme||"")+'</span></div><div class="sub">'+esc(frDate(r.dateISO))+' · Agent(s) : '+esc(r.agents||"—")+'</div></div>'+comm; }
+    };
+  }
+
+  var nav="hub", currentTool="";
+  function show(view){ ["hub","folders","bro","deriv","mps","mpc"].forEach(function(v){ $(v).classList.toggle("active", v===view); }); $("backBtn").classList.toggle("show", view!=="hub"); if(window.scrollTo) window.scrollTo(0,0); }
+  function setSub(t){ $("brandSub").textContent=t; }
+  function showFolders(name){
+    currentTool=name; nav="folders"; var app=APPS[name]; if(!app) return;
+    $("foldersTitle").textContent=TOOLNAMES[name];
+    var years=app.years(); var cy=todayISO().slice(0,4); if(years.indexOf(cy)<0) years.unshift(cy);
+    var html=years.map(function(y){ var c=app.countForYear(y); return '<button class="folder" data-y="'+esc(y)+'"><div class="fy">'+esc(y)+'</div><div class="fc">'+c+' élément'+(c>1?"s":"")+'</div></button>'; }).join("");
+    html+='<button class="folder all" data-y=""><div class="fy">Toutes</div><div class="fc">'+app.counts()+' au total</div></button>';
+    $("foldersGrid").innerHTML=html;
+    $("foldersCount").textContent="";
+    setSub(TOOLNAMES[name]); show("folders");
+  }
+  $("foldersGrid").addEventListener("click", function(e){ var b=e.target.closest(".folder"); if(!b) return; var y=b.getAttribute("data-y"); var app=APPS[currentTool]; if(!app) return; app.openYear(y); nav="tool"; setSub(TOOLNAMES[currentTool]+(y?(" · "+y):" · toutes années")); show(app.viewId); });
+
+  $("openBro").addEventListener("click", function(){ showFolders("bro"); });
+  $("openDeriv").addEventListener("click", function(){ showFolders("deriv"); });
+  $("openMps").addEventListener("click", function(){ showFolders("mps"); });
+  $("openMpc").addEventListener("click", function(){ showFolders("mpc"); });
+  $("backBtn").addEventListener("click", function(){
+    if(nav==="tool"){ showFolders(currentTool); }
+    else if(nav==="folders"){ nav="hub"; setSub("Suite d'outils terrain"); show("hub"); }
+    else { show("hub"); }
+  });
+
+  // ====== Démarrage gardé par la connexion ======
+  var started=false, currentAgent="";
+  function startApp(name){
+    currentAgent=name||"";
+    $("whoami").textContent=currentAgent;
+    document.body.classList.add("authed");
+    if(!started){
+      started=true;
+      subscribeRoster();
+      subscribeAppareils();
+      createApp(broConfig());
+      createApp(derivConfig());
+      createApp(mpsConfig());
+      createApp(mpcConfig());
+      if(currentAgent) addAgentToRoster(currentAgent);
+      renderAllPickers();
+    } else if(currentAgent){ addAgentToRoster(currentAgent); renderAllPickers(); }
+  }
+  function logoutUI(){ document.body.classList.remove("authed"); nav="hub"; setSub("Suite d'outils terrain"); show("hub"); }
+
+  var authMode="login";
+  function refreshAuthUI(){
+    if(!CLOUD){
+      $("authTabs").style.display="none";
+      $("authNameField").style.display="block";
+      $("authEmailField").style.display="none";
+      $("authPassField").style.display="none";
+      $("authSubmit").textContent="Entrer";
+      $("authNote").innerHTML="Mode local : la synchronisation entre agents n'est pas encore configurée, les données restent sur cet appareil. Voir le guide pour activer le partage (Firebase).";
+    } else {
+      $("authTabs").style.display="grid";
+      $("authNameField").style.display = authMode==="signup"?"block":"none";
+      $("authEmailField").style.display="block";
+      $("authPassField").style.display="block";
+      $("authSubmit").textContent = authMode==="signup"?"Créer mon compte":"Se connecter";
+      $("authNote").textContent="";
+    }
+  }
+  $("authTabs").addEventListener("click", function(e){ var b=e.target.closest("button"); if(!b) return; authMode=b.getAttribute("data-mode"); Array.prototype.forEach.call(this.querySelectorAll("button"), function(x){ x.setAttribute("aria-pressed", x===b?"true":"false"); }); $("authErr").textContent=""; refreshAuthUI(); });
+  function authMsg(e){ var c=(e&&e.code)||""; if(c.indexOf("email-already")>-1) return "Cet e-mail a déjà un compte."; if(c.indexOf("weak-password")>-1) return "Mot de passe trop court (6 caractères min)."; if(c.indexOf("invalid-email")>-1) return "E-mail invalide."; if(c.indexOf("wrong-password")>-1||c.indexOf("user-not-found")>-1||c.indexOf("invalid-credential")>-1) return "E-mail ou mot de passe incorrect."; return (e&&e.message)||"Erreur de connexion."; }
+  $("authSubmit").addEventListener("click", function(){
+    $("authErr").textContent="";
+    if(!CLOUD){
+      var nm=$("authName").value.trim(); if(!nm){ $("authErr").textContent="Indiquez votre nom."; return; }
+      try{ localStorage.setItem("lt.localuser", nm); }catch(e){} startApp(nm); return;
+    }
+    var email=$("authEmail").value.trim(), pw=$("authPass").value;
+    if(!email||!pw){ $("authErr").textContent="E-mail et mot de passe requis."; return; }
+    $("authSubmit").disabled=true;
+    if(authMode==="signup"){
+      var nm2=$("authName").value.trim(); if(!nm2){ $("authErr").textContent="Indiquez votre nom."; $("authSubmit").disabled=false; return; }
+      fbAuth.createUserWithEmailAndPassword(email,pw).then(function(cred){ return cred.user.updateProfile({displayName:nm2}); }).then(function(){ startApp(nm2); }).catch(function(e){ $("authErr").textContent=authMsg(e); }).then(function(){ $("authSubmit").disabled=false; });
+    } else {
+      fbAuth.signInWithEmailAndPassword(email,pw).catch(function(e){ $("authErr").textContent=authMsg(e); }).then(function(){ $("authSubmit").disabled=false; });
+    }
+  });
+  $("logoutBtn").addEventListener("click", function(){ if(CLOUD){ fbAuth.signOut(); } else { try{ localStorage.removeItem("lt.localuser"); }catch(e){} logoutUI(); $("authName").value=""; } });
+
+  refreshAuthUI();
+  if(CLOUD){
+    fbAuth.onAuthStateChanged(function(user){ if(user){ startApp(user.displayName||user.email); } else { logoutUI(); } });
+  } else {
+    var lu=""; try{ lu=localStorage.getItem("lt.localuser")||""; }catch(e){}
+    if(lu) startApp(lu);
+  }
+})();
+</script>
+</body>
+</html>
